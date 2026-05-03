@@ -1,0 +1,14 @@
+name = "Bernie"
+description = ""
+author = "peuloom"
+version = "1.0.4.6"
+forumthread = "WIP"
+api_version = 10
+icon_atlas = "modicon.xml"
+icon = "modicon.tex"
+all_clients_require_mod = true
+client_only_mod = false
+server_only_mod = false
+dont_starve_compatible = true
+reign_of_giants_compatible = true
+dst_compatible = true
