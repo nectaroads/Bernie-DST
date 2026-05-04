@@ -649,8 +649,7 @@ GLOBAL.Networking_Announcement = function(message, colour, announce_type)
     end
     if event_key then
         local maxPlayers = GLOBAL.TheNet:GetDefaultMaxPlayers()
-        local content = { name = player, message = message, register = register, players = players, maxplayers = maxPlayers }
-        local jsonEncoded = GLOBAL.json.encode({ key = event_key, value = content })
+        local jsonEncoded = GLOBAL.json.encode({ key = event_key, name = player, message = message, register = register, players = players, maxplayers = maxPlayers })
         SendRequest(jsonEncoded)
     end
     return oldNetworking_Announcement(message, colour, announce_type)
