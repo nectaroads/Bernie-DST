@@ -1,7 +1,7 @@
 name = "Bernie"
 description = ""
 author = "peuloom"
-version = "1.0.4.6"
+version = "1.1.5"
 forumthread = "WIP"
 api_version = 10
 icon_atlas = "modicon.xml"

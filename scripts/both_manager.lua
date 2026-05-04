@@ -31,4 +31,42 @@ STRINGS.CHARACTERS.WEBBER.ANNOUNCE_READ_BOOK = {
 
 STRINGS.CHARACTERS.WEBBER.ANNOUNCE_BOOK_UNDERSTAND = "I think I get it... maybe."
 
+GLOBAL.DumpTable = function (t, max_depth, level, visited)
+    level = level or 0
+    max_depth = max_depth or 1
+    visited = visited or {}
+
+    if level == 0 then print("\n=====[DumpTable]=====") end
+
+    local function prefix(level)
+        return string.rep("--|", level)
+    end
+
+    if type(t) ~= "table" then
+        print(prefix(level) .. tostring(t))
+        return
+    end
+
+    if visited[t] then return end
+    visited[t] = true
+
+    if level >= max_depth then
+        print(prefix(level) .. "{...}")
+        return
+    end
+
+    for k, v in pairs(t) do
+        local line = prefix(level) .. tostring(k)
+
+        if type(v) == "table" then
+            print(line)
+            GLOBAL.DumpTable(v, max_depth, level + 1, visited)
+        elseif type(v) == "function" then
+            print(line .. " = <function>")
+        else
+            print(line .. " = " .. tostring(v))
+        end
+    end
+end
+
 print('[Bernie] Finished loading!')

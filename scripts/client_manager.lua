@@ -2,7 +2,7 @@ local GLOBAL = GLOBAL or _G
 
 print('[Bernie] Starting Client-Manager Module...')
 
-Popups = require("GUI/popups")
+local Popups = require("GUI/popups")
 
 local flairProfiles = {
     ashley = { name = "Ashley", colour = { 0.173, 0.463, 0.604, 1 }, flair = "profileflair_ashley" },
@@ -39,7 +39,7 @@ function HandleClientChatMessage(json)
 end
 
 function ShowWelcomeMessage(inst)
-    Popups.CreateChoicePopup("Bem-vindo(a), " .. GLOBAL.TheNet:GetLocalUserName() .. "!", "1. Saiba que esse servidor é REBALANCEADO. Isso significa que terá que se adaptar a cenários mais difíceis.\n2. Existe sistemas anti-cheat funcionando. Evite Visão-noturna, Speed-hack, Super-zoom, etc.", nil, nil, "original", "small", "light")
+    Popups.CreateChoicePopup("Bem-vindo(a), " .. GLOBAL.TheNet:GetLocalUserName() .. "!", "1. Saiba que esse servidor é REBALANCEADO. Isso significa que terá que se adaptar a cenários mais difíceis.\n2. Existem sistemas anti-cheat funcionando. Evite mods de zoom, visão noturna e manipulação de câmera.", nil, nil, "original", "small", "light")
 end
 
 function OnEnterCharacterSelect(inst)
@@ -52,6 +52,137 @@ end
 
 AddPrefabPostInit("world", OnWorldPostInit)
 
-AddClientModRPCHandler("bernieclientchatmessage", "content", HandleClientChatMessage)
+GLOBAL.cammaxdistpitch = 60
+GLOBAL.lastdistance = 30
+
+local function BindKey(key, func)
+    if type(key) == "string" then
+        GLOBAL.TheInput:AddKeyUpHandler(key:lower():byte(), func)
+    elseif key > 0 then
+        GLOBAL.TheInput:AddKeyUpHandler(key, func)
+    end
+end
+
+local function AddPitch(value)
+    if GLOBAL.TheCamera then
+        local camera = GLOBAL.TheCamera
+        if value > 0 then
+            camera.maxdistpitch = math.min(camera.maxdistpitch + value, 60)
+        else
+            camera.maxdistpitch = math.max(camera.maxdistpitch + value, 40)
+        end
+        GLOBAL.cammaxdistpitch = camera.maxdistpitch
+        if GLOBAL.ThePlayer.components.talker then
+            GLOBAL.ThePlayer.components.talker:Say("Pitch em " .. camera.maxdistpitch .. " (Padrão 60)")
+        end
+    end
+end
+
+BindKey(290, function() AddPitch(-5) end)
+BindKey(291, function() AddPitch(5) end)
+
+AddClassPostConstruct("screens/playerhud", function(self) self.UpdateClouds = function() end end)
+AddComponentPostInit("focalpoint", function(self, inst) self.StartFocusSource = function() end end)
+
+AddClassPostConstruct("cameras/followcamera", function(self)
+    local FollowCameraSetDefault = self.SetDefault
+    self.SetDefault = function(self)
+        FollowCameraSetDefault(self)
+        self.targetpos = GLOBAL.Vector3(0, 0, 0)
+        self:SetDefaultOffset()
+        if self.headingtarget == nil then
+            self.headingtarget = 45
+        end
+        self.fov = 35
+        self.pangain = 4
+        self.headinggain = 20
+        self.distancegain = 1
+        self.zoomstep = 8
+        self.mindist = 10
+        self.maxdist = 43
+        self.distancetarget = GLOBAL.lastdistance
+        self.mindistpitch = 30
+        self.maxdistpitch = GLOBAL.cammaxdistpitch
+        self.shake = nil
+        if self.gamemode_defaultfn then
+            self.gamemode_defaultfn(self)
+        end
+        if self.target ~= nil then
+            self:SetTarget(self.target)
+        end
+    end
+
+    self.ZoomIn = function(self, step)
+        self.distancetarget = math.max(self.mindist, self.distancetarget - (step or self.zoomstep))
+        GLOBAL.lastdistance = self.distancetarget
+    end
+
+    self.ZoomOut = function(self, step)
+        self.distancetarget = math.min(self.maxdist, self.distancetarget + (step or self.zoomstep))
+        GLOBAL.lastdistance = self.distancetarget
+    end
+end)
+
+AddGlobalClassPostConstruct("camerashake", "CameraShake", function(self)
+    local oldStartShake = self.StartShake
+    function self:StartShake(type, duration, speed, scale, ...)
+        return oldStartShake(self, type, duration, speed, (scale or 1) * 0.5, ...)
+    end
+end)
+
+local function CheckPlayer(inst)
+    inst:DoPeriodicTask(1, function()
+        local headitem = nil
+        local camera = GLOBAL.TheCamera
+
+        local enablednightvision = false
+        local allowednightvision = false
+        local invaliddistancevision = false
+        local invalidfovvision = false
+        
+        if inst.replica then headitem = inst.replica.inventory:GetEquippedItem(GLOBAL.EQUIPSLOTS.HEAD) end
+
+        if inst.components.playervision then
+            if inst.components.playervision.forcenightvision or inst.components.playervision:HasNightVision() then enablednightvision = true end
+        end
+
+        if headitem ~= nil and inst.replica.inventory:GetEquippedItem(GLOBAL.EQUIPSLOTS.HEAD):HasTag("nightvision") then allowednightvision = true end
+        if inst.components.playervision.forcednightvisionstack and inst.components.playervision.forcednightvisionstack[1] then allowednightvision = true end
+
+        if camera.fov > 35 then invalidfovvision = true end
+
+        local distancevisionhelmets = { scrap_monoclehat = true }
+        if  camera.maxdist > 43 then
+            local limit = 43
+            if headitem ~= nil and distancevisionhelmets[headitem.prefab] then limit = limit + 20 end
+            if camera.maxdist > limit then invaliddistancevision = true end
+        end
+
+        if enablednightvision == true and allowednightvision == false then
+            inst.components.playervision.forcenightvision = false
+            inst:PushEvent("nightvision", false)
+        end
+
+        if invaliddistancevision == true then
+            if headitem ~= nil and distancevisionhelmets[headitem.prefab] then
+                camera.maxdist = 63
+            else
+                camera.maxdist = 43
+            end
+        end
+
+        if invalidfovvision == true then camera.fov = 35 end
+    end)
+end
+
+AddPlayerPostInit(function(inst)
+    inst:DoTaskInTime(0, function()
+        if (inst == GLOBAL.ThePlayer) then
+            inst:DoTaskInTime(0, CheckPlayer)
+        end
+    end)
+end)
+
+AddClientModRPCHandler("bernieservertoclientchatmessage", "content", HandleClientChatMessage)
 
 print('[Bernie] Finished loading!')
