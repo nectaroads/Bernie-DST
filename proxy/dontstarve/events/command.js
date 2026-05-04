@@ -13,7 +13,7 @@ fs.readdirSync(commandHandlersDir).forEach(file => {
 
 module.exports = async (req, res) => {
     const body = req.body;
-    const handler = commandHandlers[body.value.command];
+    const handler = commandHandlers[body.command];
     if (handler) handler(body, res, server);
     return res.status(200).json({ ok: true });
 };

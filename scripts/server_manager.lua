@@ -373,7 +373,7 @@ local function HandleServerResponse(array)
                 GLOBAL.ExecuteConsoleCommand("TheNet:BanForTime(\"" .. entry.value.userid .. "\", " .. entry.value.duration .. ")")
             elseif entry.key == "userlist" then
                 local users = GetUsers()
-                local jsonEncoded = GLOBAL.json.encode({ key = "userlist", value = { users = users, interaction = entry.value.interaction } })
+                local jsonEncoded = GLOBAL.json.encode({ key = "userlist", users = users, interaction = entry.value.interaction })
                 SendRequest(jsonEncoded)
             elseif entry.key == "regenerate" then
                 GLOBAL.ExecuteConsoleCommand("c_regenerateworld()")
@@ -519,7 +519,7 @@ local function OnEntityDeath(ent, data)
             end
         end
         ExecuteOnAllShards("clientchatmessage", { type = "server", message = "★ " .. bossesnames[victim] .. " foi derrotado ★", whisper = false })
-        local jsonEncoded = GLOBAL.json.encode({ key = "kill", value = { name = bossesnames[victim], victim = victim, doer = doer, userid = userid, players = players, helpers = helpers } })
+        local jsonEncoded = GLOBAL.json.encode({ key = "kill", name = bossesnames[victim], victim = victim, doer = doer, userid = userid, players = players, helpers = helpers })
         SendRequest(jsonEncoded)
         bossdamage[inst.GUID] = nil
         if bossenragedtimer[inst.prefab] then
@@ -534,7 +534,7 @@ local function OnEntityDeath(ent, data)
             killername = GLOBAL.STRINGS.NAMES[string.upper(killerprefab)] or killerprefab
         end
         local users = GetUsers()
-        local jsonEncoded = GLOBAL.json.encode({ key = "playerdeath", value = { victim = inst:GetDisplayName(), userid = inst.userid, prefab = inst.prefab, doer = killername or killerprefab or data.cause or "Desconhecido", players = users } })
+        local jsonEncoded = GLOBAL.json.encode({ key = "playerdeath", victim = inst:GetDisplayName(), userid = inst.userid, prefab = inst.prefab, doer = killername or killerprefab or data.cause or "Desconhecido", players = users })
         SendRequest(jsonEncoded)
     end
 end
@@ -552,14 +552,14 @@ local function OnPlayerDeath(world, data)
         killername = GLOBAL.STRINGS.NAMES[string.upper(killerprefab)] or killerprefab
     end
     local users = GetUsers()
-    local jsonEncoded = GLOBAL.json.encode({ key = "playerdeath", value = { victim = inst:GetDisplayName(), userid = inst.userid, prefab = inst.prefab, doer = killername or killerprefab or cause or "Desconhecido", players = users } })
+    local jsonEncoded = GLOBAL.json.encode({ key = "playerdeath", victim = inst:GetDisplayName(), userid = inst.userid, prefab = inst.prefab, doer = killername or killerprefab or cause or "Desconhecido", players = users })
     SendRequest(jsonEncoded)
 end
 
 local function OnPlayerRevived(inst, data)
     if not inst then return end
     local users = GetUsers()
-    local jsonEncoded = GLOBAL.json.encode({ key = "playerrevive", value = { name = inst:GetDisplayName(), userid = inst.userid, prefab = inst.prefab, players = users } })
+    local jsonEncoded = GLOBAL.json.encode({ key = "playerrevive", name = inst:GetDisplayName(), userid = inst.userid, prefab = inst.prefab, players = users })
     SendRequest(jsonEncoded)
 end
 
@@ -567,7 +567,7 @@ local function OnPlayerJoined(inst, player)
     local iscave = GLOBAL.TheWorld:HasTag("cave")
     if player and player.userid then
         local state = GLOBAL.TheWorld.state or nil
-        local jsonEncoded = GLOBAL.json.encode({ key = "playershardjoin", value = { name = player:GetDisplayName() or player.name, userid = player.userid, prefab = player.prefab, iscave = iscave, state = state } })
+        local jsonEncoded = GLOBAL.json.encode({ key = "playershardjoin", name = player:GetDisplayName() or player.name, userid = player.userid, prefab = player.prefab, iscave = iscave, state = state })
         SendRequest(jsonEncoded)
     end
 end
@@ -582,7 +582,7 @@ local function OnComponentEater(self)
             local doer = self.inst:GetDisplayName() or "Alguém"
             local userid = self.inst.userid
             ExecuteOnAllShards("clientchatmessage", { type = "server", message = doer .. " está comendo " .. victim .. "...", whisper = false })
-            local jsonEncoded = GLOBAL.json.encode({ key = "alert", value = { key = "eat", doer = doer, userid = userid, victim = victim } })
+            local jsonEncoded = GLOBAL.json.encode({ key = "alert", key = "eat", doer = doer, userid = userid, victim = victim })
             SendRequest(jsonEncoded)
         end
         return result
@@ -605,7 +605,7 @@ local function OnComponentBurnable(self)
                 if structure then
                     ExecuteOnAllShards("clientchatmessage", { type = "server", message = doer .. " está queimando " .. victim .. "...", whisper = false })
                 end
-                local jsonEncoded = GLOBAL.json.encode({ key = "alert", value = { key = "burn", doer = doer, userid = userid, victim = victim, structure = structure } })
+                local jsonEncoded = GLOBAL.json.encode({ key = "alert", key = "burn", doer = doer, userid = userid, victim = victim, structure = structure })
                 SendRequest(jsonEncoded)
             else
             end
@@ -619,7 +619,7 @@ local function OnCycleChange(inst)
     local cycle = inst.state.cycles
     if currentCycle == cycle then return end
     local users = GetUsers()
-    local jsonEncoded = GLOBAL.json.encode({ key = "cycle", value = { states = inst.state, users = users } })
+    local jsonEncoded = GLOBAL.json.encode({ key = "cycle", states = inst.state, users = users })
     currentCycle = cycle
     SendRequest(jsonEncoded)
 end
@@ -718,7 +718,7 @@ GLOBAL.ACTIONS.HAMMER.fn = function(act)
             if structure then
                 ExecuteOnAllShards("clientchatmessage", { type = "server", message = act.doer.name .. " está quebrando " .. act.target.name .. "...", whisper = false })
             end
-            local jsonEncoded = GLOBAL.json.encode({ key = "alert", value = { key = "break", doer = act.doer.name, userid = act.doer.userid, victim = act.target.name, structure = structure } })
+            local jsonEncoded = GLOBAL.json.encode({ key = "alert", key = "break", doer = act.doer.name, userid = act.doer.userid, victim = act.target.name, structure = structure })
             SendRequest(jsonEncoded)
         end
     end
