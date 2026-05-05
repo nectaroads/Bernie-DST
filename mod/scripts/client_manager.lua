@@ -2,8 +2,6 @@ local GLOBAL = GLOBAL or _G
 
 print('[Bernie] Starting Client-Manager Module...')
 
-local Popups = require("GUI/popups")
-
 local flairProfiles = {
     ashley = { name = "Ashley", colour = { 0.173, 0.463, 0.604, 1 }, flair = "profileflair_ashley" },
     bernie = { name = "Bernie", colour = { 0.502, 0.349, 0.235, 1 }, flair = "profileflair_bernie" },
@@ -35,11 +33,40 @@ function HandleClientChatMessage(json)
     if not (GLOBAL.TheWorld) then return end
     local data = type(json) == "table" and json or GLOBAL.json.decode(json) or nil
     if not data or not data.type or not data.message then return end
-    ShowCustomMessage({ type = data.type, message = data.message })
+    ShowCustomMessage({ type = data.type, message = data.message, name = data.name or nil })
 end
 
 function ShowWelcomeMessage(inst)
-    Popups.CreateChoicePopup("Bem-vindo(a), " .. GLOBAL.TheNet:GetLocalUserName() .. "!", "1. Saiba que esse servidor é REBALANCEADO. Isso significa que terá que se adaptar a cenários mais difíceis.\n2. Existem sistemas anti-cheat funcionando. Evite mods de zoom, visão noturna e manipulação de câmera.", nil, nil, "original", "small", "light")
+    GLOBAL.TheFrontEnd:PushScreen(require("screens/bigpopupdialog")(
+        "\n\n\n\nAtenção, " .. GLOBAL.TheNet:GetLocalUserName() .. "!",
+        "\n\nO servidor se diferencia criando cenários mais difíceis. Isso implica que o jogo foi rebalanceado para esse papel.  Também contamos com anticheats, evite visão-noturna!",
+        {
+            {
+                text = "Sair",
+                cb = function()
+                    GLOBAL.DoRestart(true)
+                end
+            },
+            {
+                text = "Concordo",
+                cb = function()
+                    GLOBAL.TheFrontEnd:PopScreen()
+
+                    GLOBAL.TheFrontEnd:PushScreen(require("screens/textlistpopupdialog")(
+                        "\n\nPrincipais mudanças:",
+                        { "", "1) Gigantes causam dano em área.", "2) Fome, frio e calor te enfraquecem.", "3) Toadstool mais frágil e devagar.", "4) Sombras mais perigosas!", "5) Pedras térmicas mais fracas.", "6) Dragonfly e Beequeen desviáveis.", "7) Deerclops mais resistente."},
+                        nil,
+                        {{ 
+                            text = "OK", 
+                            cb = function() 
+                                GLOBAL.TheFrontEnd:PopScreen() 
+                            end 
+                        }}
+                    ))
+                end
+            }
+        }
+    ))
 end
 
 function OnEnterCharacterSelect(inst)
@@ -179,6 +206,7 @@ AddPlayerPostInit(function(inst)
     inst:DoTaskInTime(0, function()
         if (inst == GLOBAL.ThePlayer) then
             inst:DoTaskInTime(0, CheckPlayer)
+            ShowCustomMessage({ type = "discord", message = "Tem alguma dúvida? Junte-se ao nosso Discord: discord.gg/37yfuWjyj7" })
         end
     end)
 end)

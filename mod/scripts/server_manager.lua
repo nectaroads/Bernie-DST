@@ -16,6 +16,16 @@ local attackCooldowns = {}
 local backpackPrefabs = { "backpack", "piggyback", "krampus_sack", "icepack", "seedpouch", "spicepack", "candybag" }
 local cachedPortal = nil
 
+local currentCycle = -1
+
+local lasthit = { daywalker = nil, daywalker2 = nil, sharkboi = nil }
+local bosseswithcounters = { dragonfly = true, klaus = true }
+local bosses = { alterguardian_phase1_lunarrift = true, alterguardian_phase4_lunarrift = true, wagboss_robot = true, alterguardian_phase3 = true, antlion = true, bearger = true, beequeen = true, crabking = true, daywalker = true, daywalker2 = true, deerclops = true, dragonfly = true, eyeofterror = true, klaus = true, malbatross = true, minotaur = true, moose = true, mutatedbearger = true, mutateddeerclops = true, mutatedwarg = true, shadow_bishop = true, shadow_knight = true, shadow_rook = true, sharkboi = true, stalker_atrium = true, toadstool = true, toadstool_dark = true, twinofterror1 = true, twinofterror2 = true }
+local bossesnames = { alterguardian_phase1_lunarrift = "Celestial Revenant", alterguardian_phase4_lunarrift = "Celestial Scion", wagboss_robot = "W.A.R.B.O.T", mock_dragonfly = "Wilting Dragonfly", mothergoose = "The Mother Goose", moonmaw_dragonfly = "Moonmaw Dragonfly", hoodedwidow = "The Hooded Widow", eyeofterror = "The Eye of Terror", dragonfly = "Mother Dragonfly", moose = "The Moose/Goose", bearger = "Dormant Bearger", mutatedbearger = "Armored Bearger", enraged_klaus = "Vengeful Klaus ⚠", mutateddeerclops = "Crystal Deerclops", twinofterror2 = "Hungry Spazmatism", antlion = "Desert Antlion", toadstool_dark = "Misery Toadstool ⚠", enraged_dragonfly = "Burning Dragonfly ⚠", twinofterror1 = "Seeker Retinazor", stalker_atrium = "Ancient Fuelweaver", sharkboi = "Defiant Frostjaw", mutatedwarg = "Possessed Warg", shadow_knight = "Shadow Knight", shadow_bishop = "Shadow Bishop", beequeen = "Royal Bee Queen", crabking = "Mighty Crab King", deerclops = "Chilling Deerclops", daywalker = "Nightmare Werepig", minotaur = "Ancient Guardian", daywalker2 = "Scrappy Werepig", malbatross = "Flying Malbatross", shadow_rook = "Shadow Rook", klaus = "Wicked Klaus", toadstool = "Grotto Toadstool", alterguardian_phase3 = "Celestial Champion" }
+local foodlist = { minotaurhorn = true, deerclops_eyeball = true, mandrake = true, cookedmandrake = true, mandrakesoup = true, gears = true, royal_jelly = true, glommerfuel = true }
+local bossenragedtimer = {}
+local bossdamage = {}
+local bossdamagehistory = {}
 
 function SendRequest(json)
     GLOBAL.TheSim:QueryServer(serverUrl, function(result, isSuccessful, resultCode)
@@ -81,7 +91,7 @@ function HandleShardFunction(key, value)
         end
     elseif key == "clientchatmessage" then
         if value.userid then
-            local json = GLOBAL.json.encode({ type = value.type, message = value.message })
+            local json = GLOBAL.json.encode({ type = value.type, message = value.message, name = value.name or nil })
             if json then
                 SendModRPCToClient(CLIENTCHATMESSAGE_RPC, value.userid, json)
             end
@@ -90,7 +100,7 @@ function HandleShardFunction(key, value)
         local users = GetUsers()
         for _, player in pairs(users) do
             if player and player.userid then
-                local json = GLOBAL.json.encode({ type = value.type, message = value.message })
+                local json = GLOBAL.json.encode({ type = value.type, message = value.message, name = value.name or nil })
                 if json then
                     SendModRPCToClient(CLIENTCHATMESSAGE_RPC, player.userid, json)
                 end
@@ -282,7 +292,7 @@ end
 
 AddPrefabPostInit("mermking", OnMermKingPostInit)
 
-local customPigNames = { "Pigloom", "Lalachinus" }
+local customPigNames = { "Pigloom", "Lalachinus", "Alfacius", "Malia" }
 
 local function OnPigmanPostInit(inst)
     inst:DoTaskInTime(0, function()
@@ -350,14 +360,18 @@ local propaganda = {
     "Walter não consegue manter equilíbrio em Beefalos.",
     "Alguns porcos possuem nomes especiais de jogadores...",
     "Junte-se ao nosso Discord: discord.gg/37yfuWjyj7",
-    "Cancelar animações NÃO funciona. Nem mesmo com mods.",
+    "Cancelar animações NÃO FUNCIONA. Nem mesmo com mods.",
     "Evite mods como Visão-noturna, Zoom e etc.",
     "Mochilas podem ser colocadas em seu inventário!",
     "Reis Merm não chamam ajuda quando são golpeados, Constant os abandonou!",
     "Você enfraquece quando sente frio, calor ou fome...",
     "Qualquer coisa congelada recebe dano extra!",
     "Sombras são mais perigosas por aqui...",
-    "Os gigantes se comportam diferente, tome cuidado!"
+    "Os gigantes se comportam diferente, tome cuidado!",
+    "Jogadores isolados causam mais dano em gigantes.",
+    "Não fique na escuridão, Grue está mais violento.",
+    "Gigantes possuem armadura adaptativa, mas Sobreviventes são imunes!",
+    "Gigantes podem te aplicar efeitos adicionais no ataque."
 }
 
 local function HandleServerResponse(array)
@@ -404,7 +418,7 @@ AddPrefabPostInit("world", function(inst)
     inst:DoPeriodicTask(1, function()
         SendUpdateRequest()
     end)
-    inst:DoPeriodicTask(60 * 10, function()
+    inst:DoPeriodicTask(60 * 60, function()
         local rand = math.random(#propaganda)
         local target = propaganda[rand]
         local data = { type = "server", message = target }
@@ -430,10 +444,56 @@ local old_GetAttacked = Combat.GetAttacked
 
 function Combat:GetAttacked(attacker, damage, weapon, stimuli, spdamage)
     local inst = self.inst
+    local health = self.inst.components.health
 
     -- Everything takes massive damage if frozen.
     if inst.components.freezable ~= nil and inst.components.freezable:IsFrozen() and damage ~= nil and damage > 0 then
-        damage = damage + 24
+        local health = inst.components.health
+        if health then
+            local bonus = math.floor(health.maxhealth * 0.05)
+            damage = damage + bonus
+        end
+    end
+
+    -- Helpers list
+    if attacker and inst:HasTag("epic") then
+        lasthit[inst.prefab] = attacker
+        if not bossdamage[inst.GUID] then bossdamage[inst.GUID] = {} end
+        if not bossdamagehistory[inst.GUID] then bossdamagehistory[inst.GUID] = {} end
+        
+        if health.currenthealth >= health.maxhealth then
+            bossdamage[inst.GUID] = {}
+            bossdamagehistory[inst.GUID] = {}
+        else
+            bossdamage[inst.GUID][attacker.GUID] = attacker
+            table.insert(bossdamagehistory[inst.GUID], attacker)
+            if #bossdamagehistory[inst.GUID] > 7 then table.remove(bossdamagehistory[inst.GUID], 1) end
+        end
+            
+        local helpers = bossdamage[inst.GUID]
+        local count = 0
+
+        for _, player in pairs(helpers) do 
+            if player and player:HasTag("player") then
+                count = count + 1
+            end
+        end
+
+        if attacker:HasTag("player") then 
+            if count <= 1 then
+                damage = damage * 1.5
+            end
+        else
+            local sameprefab = 0
+            for _, hitter in ipairs(bossdamagehistory[inst.GUID]) do
+                if hitter and hitter.prefab == attacker.prefab then
+                    sameprefab = sameprefab + 1
+                end
+            end
+            local repeats = math.max(0, math.floor((sameprefab - 1) / 3))
+            local reduction = math.max(0.1, 1 - (repeats * 0.45))
+            damage = damage * reduction
+        end
     end
 
     if inst:HasTag("player") then
@@ -450,9 +510,14 @@ function Combat:GetAttacked(attacker, damage, weapon, stimuli, spdamage)
                 inst.components.health:DoDelta(-4, nil, "hunger_bonus")
             end
         end
+        -- Some Epic monsters applies debuffs.
+        local wetnessbosses = { beequeen = true, crabking = true, deerclops = true, malbatross = true, moose = true,  mutateddeerclops = true, sharkboi = true, toadstool = true, toadstool_dark = true }
+        if wetnessbosses[attacker.prefab] and inst.components.moisture then
+            inst.components.moisture:DoDelta(10)
+        end
     end
 
-    if attacker ~= nil and attacker:HasTag("player") and damage ~= nil and damage > 0 then
+    if attacker and attacker:HasTag("player") and damage ~= nil and damage > 0 then
         local multiplier = 1
         -- Uncomfy players deal less damage.
         if attacker.components.temperature ~= nil then
@@ -486,22 +551,6 @@ AddStategraphPostInit("dragonfly", function(sg)
 end)
 
 -- Logger
-local currentCycle = -1
-
-local lasthit = { daywalker = nil, daywalker2 = nil, sharkboi = nil }
-local bosseswithcounters = { dragonfly = true, klaus = true }
-local bosses = { alterguardian_phase3 = true, antlion = true, bearger = true, beequeen = true, crabking = true, daywalker = true, daywalker2 = true, deerclops = true, dragonfly = true, eyeofterror = true, klaus = true, malbatross = true, minotaur = true, moose = true, mutatedbearger = true, mutateddeerclops = true, mutatedwarg = true, shadow_bishop = true, shadow_knight = true, shadow_rook = true, sharkboi = true, stalker_atrium = true, toadstool = true, toadstool_dark = true, twinofterror1 = true, twinofterror2 = true }
-local bossesnames = {mock_dragonfly = "Wilting Dragonfly", mothergoose = "The Mother Goose", moonmaw_dragonfly = "Moonmaw Dragonfly", hoodedwidow = "The Hooded Widow", eyeofterror = "The Eye of Terror", dragonfly = "Mother Dragonfly", moose = "The Moose/Goose", bearger = "Dormant Bearger", mutatedbearger = "Armored Bearger", enraged_klaus = "Vengeful Klaus ⚠", mutateddeerclops = "Crystal Deerclops", twinofterror2 = "Hungry Spazmatism", antlion = "Desert Antlion", toadstool_dark = "Misery Toadstool ⚠", enraged_dragonfly = "Burning Dragonfly ⚠", twinofterror1 = "Seeker Retinazor", stalker_atrium = "Ancient Fuelweaver", sharkboi = "Defiant Frostjaw", mutatedwarg = "Possessed Warg", shadow_knight = "Shadow Knight", shadow_bishop = "Shadow Bishop", beequeen = "Royal Bee Queen", crabking = "Mighty Crab King", deerclops = "Chilling Deerclops", daywalker = "Nightmare Werepig", minotaur = "Ancient Guardian", daywalker2 = "Scrappy Werepig", malbatross = "Flying Malbatross", shadow_rook = "Shadow Rook", klaus = "Wicked Klaus", toadstool = "Grotto Toadstool", alterguardian_phase3 = "Celestial Champion" }
-local foodlist = { minotaurhorn = true, deerclops_eyeball = true, mandrake = true, cookedmandrake = true, mandrakesoup = true, gears = true, royal_jelly = true, glommerfuel = true }
-local bossenragedtimer = {}
-local bossdamage = {}
-
-local function OnEntityHit(inst, data)
-    if data and data.attacker then
-        lasthit[inst.prefab] = data.attacker
-    end
-end
-
 local function OnEntityDeath(ent, data)
     local inst = ent or (data and data.inst) or data
     local cause = data.cause and data.afflicter or lasthit[inst.prefab] or nil
@@ -672,6 +721,10 @@ for boss, _ in pairs(bosses) do
     AddPrefabPostInit(boss, function(inst)
         inst:ListenForEvent("death", OnEntityDeath)
         inst:ListenForEvent("attacked", OnEntityHit)
+
+        inst:DoTaskInTime(0, function()
+            if not inst:HasTag("epic") then inst:AddTag("epic") end
+        end)
     end)
 end
 
@@ -725,11 +778,17 @@ GLOBAL.ACTIONS.HAMMER.fn = function(act)
 end
 
 -- Survivors
+GLOBAL.TUNING.GAMEMODE_STARTING_ITEMS.DEFAULT.WILSON = { "backpack" }
+
 TUNING.WES_WORK_MULTIPLIER = 1
 TUNING.WONKEY_WALK_SPEED_PENALTY = 1
 TUNING.WONKEY_SPEED_BONUS = 1.5
 TUNING.WONKEY_TIME_TO_RUN = 2
 TUNING.WONKEY_RUN_HUNGER_RATE_MULT = 1.1
+
+TUNING.SHADOW_PILLAR_DURATION = 12
+TUNING.SHADOW_PILLAR_DURATION_BOSS = 6
+TUNING.SHADOW_PILLAR_DURATION_PLAYER = 3
 
 -- Environment
 TUNING.OCEANTREE_STAGES_TO_SUPERTALL = 2
@@ -737,9 +796,14 @@ TUNING.OCEANTREE_STAGES_TO_SUPERTALL = 2
 -- Creatures
 TUNING.GRUEDAMAGE = 999
 TUNING.WALRUS_REGEN_PERIOD = TUNING.WALRUS_REGEN_PERIOD * 0.6
-TUNING.CRAWLINGHORROR_HEALTH = 500
-TUNING.CRAWLINGHORROR_DAMAGE = 70
+TUNING.CRAWLINGHORROR_HEALTH = 400
+TUNING.CRAWLINGHORROR_DAMAGE = 40
 TUNING.CRAWLINGHORROR_ATTACK_PERIOD = 2
+
+TUNING.BEEGUARD_HEALTH = 300
+TUNING.BEEGUARD_DASH_SPEED = 7
+TUNING.LAVAE_HEALTH = 150
+TUNING.BEEGUARD_SPEED = 4
 
 -- Bosses
 TUNING.TOADSTOOL_HEALTH = 32500
@@ -750,26 +814,32 @@ TUNING.TOADSTOOL_SPORECLOUD_LIFETIME = 20
 TUNING.TOADSTOOL_MUSHROOMSPROUT_CHOPS = 6
 TUNING.TOADSTOOL_MUSHROOMSPROUT_CD = 40
 
+TUNING.CRABKING_CLAW_ATTACKRANGE = 3.6
+TUNING.CRABKING_CLAW_BOATDAMAGE = 20
+TUNING.CRABKING_GEYSER_BOATDAMAGE = 5
+TUNING.CRABKING_REGEN = 25
+
 TUNING.DEERCLOPS_HEALTH = 8000
 TUNING.DEERCLOPS_ATTACK_PERIOD = 3
 
+TUNING.DRAGONFLY_ENRAGE_DURATION = 30
+TUNING.DRAGONFLY_FIRE_DAMAGE = 200
 TUNING.DRAGONFLY_ATTACK_RANGE = 6
-TUNING.DRAGONFLY_SPEED = 5
+TUNING.DRAGONFLY_SPEED = 4
+TUNING.DRAGONFLY_FIRE_SPEED = 5
 TUNING.DRAGONFLY_HIT_RANGE = 5
+TUNING.DRAGONFLY_FIRE_HIT_RANGE = 5
 
-TUNING.BEEQUEEN_ATTACK_PERIOD = 3
-TUNING.BEEQUEEN_ATTACK_RANGE = 4
-TUNING.BEEQUEEN_HIT_RANGE = 3
-TUNING.BEEQUEEN_SPEED = 1
+TUNING.BEEQUEEN_DAMAGE = 200
+TUNING.BEEQUEEN_SPEED = 3
+TUNING.BEEQUEEN_ATTACK_RANGE = 5
+TUNING.BEEQUEEN_HIT_RANGE = 4
+TUNING.BEEQUEEN_SPAWNGUARDS_CD = { 24, 22, 18, 16 }
+TUNING.BEEQUEEN_FOCUSTARGET_CD = { 120, 60, 32, 24 }
 TUNING.BEEQUEEN_MIN_GUARDS_PER_SPAWN = 2
-TUNING.BEEQUEEN_MAX_GUARDS_PER_SPAWN = 6
-TUNING.BEEQUEEN_TOTAL_GUARDS = 8
-TUNING.BEEQUEEN_SPAWNGUARDS_CD = { 24, 20, 16, 12 }
-
-TUNING.BEEGUARD_HEALTH = 120
-TUNING.BEEGUARD_DAMAGE = 20
-TUNING.BEEGUARD_ATTACK_PERIOD = 4
-TUNING.BEEGUARD_SPEED = 4
+TUNING.BEEQUEEN_MAX_GUARDS_PER_SPAWN = 4
+TUNING.BEEQUEEN_TOTAL_GUARDS = 4
+TUNING.BEEQUEEN_HONEYTRAIL_SPEED_PENALTY = 0.2
 
 TUNING.SPAWN_KLAUS = true
 
