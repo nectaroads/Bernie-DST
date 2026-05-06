@@ -54,7 +54,7 @@ function ShowWelcomeMessage(inst)
 
                     GLOBAL.TheFrontEnd:PushScreen(require("screens/textlistpopupdialog")(
                         "\n\nPrincipais mudanças:",
-                        { "", "1) Gigantes causam dano em área.", "2) Fome, frio e calor te enfraquecem.", "3) Toadstool mais frágil e devagar.", "4) Sombras mais perigosas!", "5) Pedras térmicas mais fracas.", "6) Dragonfly e Beequeen desviáveis.", "7) Deerclops mais resistente."},
+                        { "", "1) Os gigantes causam dano em área.", "2) Todos os chefes foram rebalanceados.", "3) Calor, frio e fome causam fraqueza.", "4) Mochilas, roupas e pedras térmicas rebalanceados.", "5) Wes e Wonkey menos punitivos.", "6) (...)", "7) (...)"},
                         nil,
                         {{ 
                             text = "OK", 

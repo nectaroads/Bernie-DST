@@ -132,12 +132,6 @@ function HandleChatCommands(guid, userid, name, prefab, message, colour, whisper
     local prefix = trimmed_message:sub(1, 1)
     local command = trimmed_message:sub(2):match("^%s*(.-)%s*$")
     if prefix ~= chatCommandPrefix then return false end
-    --if command == "d:sm" then
-    --    HandleShardFunction("clientchatmessage", { message = "[Global] Message 1...", type = "global" })
-    --    HandleShardFunction("clientchatmessage", { message = "[Private] Message 1...", type = "private", userid = userid })
-    --    HandleShardFunction("clientchatmessage", { message = "[Global] Message 2...", type = "discord" })
-    --    HandleShardFunction("clientchatmessage", { message = "[Private] Message 2...", type = "willow", userid = userid })
-    --end
     return true
 end
 
@@ -188,32 +182,6 @@ local function OnPlayerAttacked(inst, data)
     if activeItem and activeItem:HasTag("backpack") then inst.components.inventory:DropItem(activeItem, true, true) end
 end
 
-local function OnPlayerHitOther(inst, data)
-    if not inst and not data then return end
-    local guid = inst.GUID and GLOBAL.tostring(inst.GUID)
-    if not attackCooldowns[guid] then attackCooldowns[guid] = 0 end
-    local currentTime = GLOBAL.GetTime()
-    local cooldownValue = attackCooldown
-    local state = inst.sg and inst.sg.currentstate and inst.sg.currentstate and inst.sg.currentstate.name
-    if state ~= "attack" then return end
-    if inst.components.inventory then
-        local handItem = inst.components.inventory:GetEquippedItem(GLOBAL.EQUIPSLOTS.HANDS)
-        if handItem then
-            if handItem.prefab == "alarmingclock" then cooldownValue = cooldownValue * 1.15 end
-            if inst.components.rider and inst.components.rider:IsRiding() then cooldownValue = cooldownValue * 1.06 end
-        end
-    end
-    if attackCooldowns[guid] > currentTime and inst.components and inst.components.combat then
-        local threshhold = attackCooldowns[guid] - currentTime
-        local debuffProportion = 1 - (threshhold / 0.005) * 0.05
-        if debuffProportion < 0 then debuffProportion = 0 end
-        inst.components.combat.externaldamagemultipliers:SetModifier("speeddamagemultiplier", debuffProportion)
-    else
-        inst.components.combat.externaldamagemultipliers:SetModifier("speeddamagemultiplier", 1)
-    end
-    attackCooldowns[guid] = currentTime + cooldownValue
-end
-
 AddSimPostInit(function()
     if GLOBAL.TheWorld then
         local NETWORKING_SAY = GLOBAL.Networking_Say
@@ -223,11 +191,9 @@ AddSimPostInit(function()
         end
     end
     AddPlayerPostInit(function(inst)
-        inst:ListenForEvent("onhitother", OnPlayerHitOther)
         inst:ListenForEvent("itemget", OnPlayerItemGet)
         inst:ListenForEvent("equip", OnPlayerEquip)
         inst:ListenForEvent("attacked", OnPlayerAttacked)
-
         inst:DoPeriodicTask(3, function(inst)
             local temp = inst.components.temperature
             local hunger = inst.components.hunger
@@ -360,7 +326,6 @@ local propaganda = {
     "Walter não consegue manter equilíbrio em Beefalos.",
     "Alguns porcos possuem nomes especiais de jogadores...",
     "Junte-se ao nosso Discord: discord.gg/37yfuWjyj7",
-    "Cancelar animações NÃO FUNCIONA. Nem mesmo com mods.",
     "Evite mods como Visão-noturna, Zoom e etc.",
     "Mochilas podem ser colocadas em seu inventário!",
     "Reis Merm não chamam ajuda quando são golpeados, Constant os abandonou!",
@@ -370,8 +335,7 @@ local propaganda = {
     "Os gigantes se comportam diferente, tome cuidado!",
     "Jogadores isolados causam mais dano em gigantes.",
     "Não fique na escuridão, Grue está mais violento.",
-    "Gigantes possuem armadura adaptativa, mas Sobreviventes são imunes!",
-    "Gigantes podem te aplicar efeitos adicionais no ataque."
+    "Gigantes possuem armadura adaptativa, mas Sobreviventes são imunes!"
 }
 
 local function HandleServerResponse(array)
@@ -458,6 +422,7 @@ function Combat:GetAttacked(attacker, damage, weapon, stimuli, spdamage)
     -- Helpers list
     if attacker and inst:HasTag("epic") then
         lasthit[inst.prefab] = attacker
+
         if not bossdamage[inst.GUID] then bossdamage[inst.GUID] = {} end
         if not bossdamagehistory[inst.GUID] then bossdamagehistory[inst.GUID] = {} end
         
@@ -509,11 +474,6 @@ function Combat:GetAttacked(attacker, damage, weapon, stimuli, spdamage)
             if inst.components.hunger:GetPercent() < TUNING.HUNGRY_THRESH then
                 inst.components.health:DoDelta(-4, nil, "hunger_bonus")
             end
-        end
-        -- Some Epic monsters applies debuffs.
-        local wetnessbosses = { beequeen = true, crabking = true, deerclops = true, malbatross = true, moose = true,  mutateddeerclops = true, sharkboi = true, toadstool = true, toadstool_dark = true }
-        if wetnessbosses[attacker.prefab] and inst.components.moisture then
-            inst.components.moisture:DoDelta(10)
         end
     end
 
@@ -568,7 +528,21 @@ local function OnEntityDeath(ent, data)
             end
         end
         ExecuteOnAllShards("clientchatmessage", { type = "server", message = "★ " .. bossesnames[victim] .. " foi derrotado ★", whisper = false })
-        local jsonEncoded = GLOBAL.json.encode({ key = "kill", name = bossesnames[victim], victim = victim, doer = doer, userid = userid, players = players, helpers = helpers })
+
+        local helpers_names = {}
+        
+        if helpers then
+            for _, player in pairs(helpers) do
+                if player and player.userid then
+                    table.insert(helpers_names, {
+                        name = player:GetDisplayName(),
+                        userid = player.userid
+                    })
+                end
+            end
+        end
+
+        local jsonEncoded = GLOBAL.json.encode({ key = "kill", name = bossesnames[victim], victim = victim, doer = doer, userid = userid, players = players, helpers = helpers_names })
         SendRequest(jsonEncoded)
         bossdamage[inst.GUID] = nil
         if bossenragedtimer[inst.prefab] then
