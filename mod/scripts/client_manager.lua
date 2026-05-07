@@ -23,17 +23,89 @@ GLOBAL.GetProfileFlairAtlasAndTex = function(item_key)
     return old_GetProfileFlairAtlasAndTex(item_key)
 end
 
+local lastmessage = {}
+
 function ShowCustomMessage(value)
     local profile = flairProfiles[value.type]
     if not profile then return end
+    if lastmessage.type == value.type and lastmessage.message == value.message then return end
     GLOBAL.ChatHistory:AddToHistory(GLOBAL.ChatTypes.Message, nil, nil, value.name or profile.name, value.message, profile.colour, profile.flair, false, false, TEXT_FILTER_CTX_CHAT)
+end
+
+local clienteventhandler = {}
+clienteventhandler.blink = function(data)
+    if not GLOBAL.ThePlayer or not GLOBAL.TheFrontEnd then return end
+    local count = data.count or 1
+    local rate = data.rate or 0.15
+    local blacktime = data.blacktime or 0.04
+    local fadetime = data.fadetime or 0.15
+    for i = 0, count do
+        GLOBAL.ThePlayer:DoTaskInTime(i * rate, function()
+            GLOBAL.TheFrontEnd:Fade(false, 0)
+            GLOBAL.ThePlayer:DoTaskInTime(blacktime, function()
+                GLOBAL.TheFrontEnd:Fade(true, fadetime)
+            end)
+        end)
+    end
+end
+
+function ClientChatEventHandler(data)
+    if data ~= nil and data.event ~= nil then
+        local fn = clienteventhandler[data.event]
+        if fn ~= nil then
+            fn(data)
+        end
+    end
 end
 
 function HandleClientChatMessage(json)
     if not (GLOBAL.TheWorld) then return end
     local data = type(json) == "table" and json or GLOBAL.json.decode(json) or nil
     if not data or not data.type or not data.message then return end
+    if data.event ~= nil then ClientChatEventHandler(data) end
     ShowCustomMessage({ type = data.type, message = data.message, name = data.name or nil })
+end
+
+function ShowList(title, description, func)
+    local buttons = {
+        {
+            text = "Sair",
+            cb = function()
+                GLOBAL.TheFrontEnd:PopScreen()
+            end
+        }
+    }
+
+    if func then
+        table.insert(buttons, {
+            text = "Continuar",
+            cb = function()
+                GLOBAL.TheFrontEnd:PopScreen()
+                func()
+            end
+        })
+    end
+
+    local lines = { "" }
+
+    for line in description:gmatch("[^\n]+") do  table.insert(lines, line) end
+
+    GLOBAL.TheFrontEnd:PushScreen(require("screens/textlistpopupdialog")(
+        "\n\n" .. title,
+        lines,
+        nil,
+        buttons
+    ))
+end
+
+function ShowInfo()
+    ShowList("Sobre o Mundo:", "1) Eventos aleatórios podem ocorrer.\n2) ...\n3) ...\n4) ...\n5) ...",
+    function() ShowList("Sobre os Sobreviventes:", "1) Wes trabalha normalmente.\n2) Walter também cai de Beefalos.\n3) Wonkey não é devagar.\n4) [Fome, Frio, Calor] Enfraquecem.\n5) Fraqueza afeta dano dado/recebido.\n6) Lutar sozinho aumenta seu dano!",
+    function() ShowList("Sobre o Clima:", "1) Pedras térmicas são mais fracas.\n2) ...\n3) ...\n4) ...\n5) ...",
+    function() ShowList("Sobre as Criaturas:", "1) Zangões são mais resistentes.\n2) As Lavaes morrem facilmente.\n3) Abigail resiste Gigantes.\n4) ...\n5) ...",
+    function() ShowList("Sobre os Gigantes:", "1) Gigantes causam dano em área.\n2) Os gigantes estão mais lentos.\n3) Dragonfly incinera invés de cair.\n4) Beequeen tem cooldowns maiores.\n5) Deerclops está mais resistente.\n6) Shadow Pieces tem menos range.",
+    function() ShowList("Sobre as Sombras:", "1) As Sombras estão mais fortes.\n2) O dano da escuridão é MASSIVO.\n3) ...\n4) ...\n5) ...",
+    function() ShowList("Sobre novas Mecânicas:", "1) Beefalos dividem dano com o Player.\n2) Congelamentos causa dano massivo.\n3) Porcos construem casas novas!\n4) Itens queimados são recuperáveis.\n5) ...") end) end) end) end) end) end)
 end
 
 function ShowWelcomeMessage(inst)
@@ -42,7 +114,7 @@ function ShowWelcomeMessage(inst)
         "\n\nO servidor se diferencia criando cenários mais difíceis. Isso implica que o jogo foi rebalanceado para esse papel.  Também contamos com anticheats, evite visão-noturna!",
         {
             {
-                text = "Sair",
+                text = "Desconectar",
                 cb = function()
                     GLOBAL.DoRestart(true)
                 end
@@ -51,18 +123,6 @@ function ShowWelcomeMessage(inst)
                 text = "Concordo",
                 cb = function()
                     GLOBAL.TheFrontEnd:PopScreen()
-
-                    GLOBAL.TheFrontEnd:PushScreen(require("screens/textlistpopupdialog")(
-                        "\n\nPrincipais mudanças:",
-                        { "", "1) Os gigantes causam dano em área.", "2) Todos os chefes foram rebalanceados.", "3) Calor, frio e fome causam fraqueza.", "4) Mochilas, roupas e pedras térmicas rebalanceados.", "5) Wes e Wonkey menos punitivos.", "6) (...)", "7) (...)"},
-                        nil,
-                        {{ 
-                            text = "OK", 
-                            cb = function() 
-                                GLOBAL.TheFrontEnd:PopScreen() 
-                            end 
-                        }}
-                    ))
                 end
             }
         }
@@ -107,6 +167,7 @@ end
 
 BindKey(290, function() AddPitch(-5) end)
 BindKey(291, function() AddPitch(5) end)
+BindKey(282, function() ShowInfo() end)
 
 AddClassPostConstruct("screens/playerhud", function(self) self.UpdateClouds = function() end end)
 AddComponentPostInit("focalpoint", function(self, inst) self.StartFocusSource = function() end end)
@@ -166,7 +227,7 @@ local function CheckPlayer(inst)
         local allowednightvision = false
         local invaliddistancevision = false
         local invalidfovvision = false
-        
+
         if inst.replica then headitem = inst.replica.inventory:GetEquippedItem(GLOBAL.EQUIPSLOTS.HEAD) end
 
         if inst.components.playervision then
@@ -179,7 +240,7 @@ local function CheckPlayer(inst)
         if camera.fov > 35 then invalidfovvision = true end
 
         local distancevisionhelmets = { scrap_monoclehat = true }
-        if  camera.maxdist > 43 then
+        if camera.maxdist > 43 then
             local limit = 43
             if headitem ~= nil and distancevisionhelmets[headitem.prefab] then limit = limit + 20 end
             if camera.maxdist > limit then invaliddistancevision = true end
@@ -206,7 +267,7 @@ AddPlayerPostInit(function(inst)
     inst:DoTaskInTime(0, function()
         if (inst == GLOBAL.ThePlayer) then
             inst:DoTaskInTime(0, CheckPlayer)
-            ShowCustomMessage({ type = "discord", message = "Tem alguma dúvida? Junte-se ao nosso Discord: discord.gg/37yfuWjyj7" })
+            ShowCustomMessage({ type = "server", message = "Tem alguma dúvida? Pressione F1 ou junte-se ao nosso Discord: discord.gg/37yfuWjyj7" })
         end
     end)
 end)

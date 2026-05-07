@@ -96,7 +96,7 @@ async function getClientRole(guildId, roleId) {
 }
 
 function startDiscordEvents() {
-    const files = listFiles('./proxy/discord/events');
+    const files = listFiles('./bot/discord/events');
     for (const abs of files) {
         const name = path.basename(abs, '.js');
         const handler = requireFresh(abs);
@@ -106,7 +106,7 @@ function startDiscordEvents() {
 }
 
 function startDiscordCommands() {
-    const files = listFiles('./proxy/discord/commands');
+    const files = listFiles('./bot/discord/commands');
     const map = new Map();
     for (const abs of files) {
         const cmd = requireFresh(abs);
