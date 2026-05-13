@@ -3,6 +3,27 @@ print('[Bernie] Starting Immersive-World module')
 local config = GLOBAL.LoadConfig("immersiveworld.lua")
 
 if GLOBAL.TheNet:IsDedicated() then
+    -- Flare reveals map
+    AddSimPostInit(function()
+        if not GLOBAL.TheWorld.ismastersim then return end
+        local function FlareDoReveal(data)
+            if data == nil or data.pt == nil then return end
+            local x, y, z = data.pt:Get()
+            for _, player in ipairs(GLOBAL.AllPlayers) do
+                if player ~= nil and player:IsValid() and player.player_classified ~= nil and player.player_classified.MapExplorer ~= nil
+                then
+                    player.player_classified.MapExplorer:RevealArea(x, y, z)
+                end
+            end
+        end
+        GLOBAL.TheWorld:ListenForEvent("miniflare_detonated", function(world, data)
+            FlareDoReveal(data)
+        end)
+        GLOBAL.TheWorld:ListenForEvent("megaflare_detonated", function(world, data)
+            FlareDoReveal(data)
+        end)
+    end)
+
     local function OnPigmanPostInit(inst)
         inst:DoTaskInTime(0, function()
             -- Pigs can have special names
@@ -17,7 +38,7 @@ if GLOBAL.TheNet:IsDedicated() then
                     local function PigHasHome(inst) return inst.components.homeseeker ~= nil and inst.components.homeseeker.home ~= nil and inst.components.homeseeker.home:IsValid() end
                     local function GivePigNewHouse(inst)
                         if PigHasHome(inst) then return end
-                        if math.random() > 1 then return end
+                        if math.random() > 0.1 then return end
                         if inst.sg ~= nil then inst.sg:GoToState("refuse") end
                         inst:DoTaskInTime(0.7, function(inst)
                             if not inst or inst.components.health == nil then return end

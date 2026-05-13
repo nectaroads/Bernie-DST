@@ -54,7 +54,7 @@ local function OnEntityDeath(ent, data)
     local users = GLOBAL.GetUsers()
     if not victim or not cause then return end
     if victim:HasTag("epic") then
-        GLOBAL.ExecuteOnAllShards({ key = "bernie_rpc_client_message", rpc = "bernie_rpc_client_message", type = "server", message = ("★ " .. GetSafeName(victim) .. " foi derrotado ★") or "error" }, true)
+        GLOBAL.ExecuteOnAllShards({ key = "bernie_rpc_client_message", rpc = "bernie_rpc_client_message", type = "server", sound = "summerevent2022/carnivalgame_puckdrop/endbell", message = ("★ " .. GetSafeName(victim) .. " foi derrotado ★") or "error" }, true)
         local jsonEncoded = GLOBAL.json.encode({ key = "epic_death", victim = GetSafeName(victim), cause = GetSafeName(cause), witness = PickWitness(cause.userid), users = users })
         GLOBAL.SendRequest(jsonEncoded)
     else
@@ -69,10 +69,6 @@ local function OnEntityRevive(inst, data)
     if not inst then return end
     local victim = inst
     local cause = data and (data.source or data.reviver or data.doer or data.cause or data.afflicter)
-    if not cause then
-        GLOBAL.DumpTable(data)
-        return
-    end
     GLOBAL.DumpTable(cause)
     if inst:HasTag("player") then
         local users = GLOBAL.GetUsers()
@@ -106,7 +102,7 @@ end
 AddSimPostInit(function()
     AddPlayerPostInit(function(inst)
         inst:ListenForEvent("death", OnEntityDeath)
-        inst:ListenForEvent("ms_respawnedfromghost", OnEntityRevive)
+        inst:ListenForEvent("respawnfromghost", OnEntityRevive)
         inst:ListenForEvent("respawnfromcorpse", OnEntityRevive)
     end)
 end)

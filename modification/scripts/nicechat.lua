@@ -106,6 +106,7 @@ function HandleClientChatMessage(payload)
     local data = DecodeRPCData(payload)
     if not data then return end
     if data.event and clienteventhandler[data.event] then clienteventhandler[data.event](data) end
+    if data.sound and GLOBAL.ThePlayer then GLOBAL.ThePlayer.SoundEmitter:PlaySound(data.sound) end
     GLOBAL.ShowCustomMessage(data)
 end
 

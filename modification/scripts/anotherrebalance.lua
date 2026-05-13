@@ -1,8 +1,9 @@
 print('[Bernie] Starting Another-Rebalance module')
 
+local wigfridcombos = {}
+
 if GLOBAL.TheNet:IsDedicated() then
     local EventHandler = GLOBAL.EventHandler
-
     -- Tools
     local function DamagePlayer(target, total_damage)
         if not (target and target.components and target.components.health and target.components.inventory) then return end
@@ -20,6 +21,21 @@ if GLOBAL.TheNet:IsDedicated() then
         end
         if remaining_damage > 0 then
             target.components.health:DoDelta(-remaining_damage, nil, "beefalo_impact")
+        end
+    end
+
+    -- Player stuff
+    local function OnEntityRevive(inst, data)
+        if not inst then return end
+        local victim = inst
+        local cause = data and (data.source or data.reviver or data.doer or data.cause or data.afflicter)
+        if inst:HasTag("player") then
+            -- max health debuff
+            if not (cause.prefab == "resurrectionstatue") then
+                if inst.components.health ~= nil then
+                    inst.components.health:DeltaPenalty(TUNING.HEART_HEALTH_PENALTY * 2)
+                end
+            end
         end
     end
 
@@ -86,6 +102,10 @@ if GLOBAL.TheNet:IsDedicated() then
 
             -- Players are weaker when starving, freezing or overheating
             if inst:HasTag("player") then
+                -- Wigfrids scale damage with combos
+                if inst.prefab == "wathgrithr" then
+                    wigfridcombos[inst.GUID] = 0
+                end
                 -- Players takes extra 2 true-damage if temperature is not comfy enough.
                 if inst.components.temperature ~= nil then
                     local temp = inst.components.temperature
@@ -102,6 +122,13 @@ if GLOBAL.TheNet:IsDedicated() then
             end
 
             if attacker and attacker:HasTag("player") and damage and damage > 0 then
+                -- Wigfrids scale damage with combos
+                if attacker.prefab == "wathgrithr" then
+                    if not wigfridcombos[attacker.GUID] then wigfridcombos[attacker.GUID] = 0 end
+                    wigfridcombos[attacker.GUID] = wigfridcombos[attacker.GUID] + 1
+                    if wigfridcombos[attacker.GUID] > 20 then wigfridcombos[attacker.GUID] = 20 end
+                    damage = damage + wigfridcombos[attacker.GUID]
+                end
                 local multiplier = 1
                 -- Uncomfy players deal less damage.
                 if attacker.components.temperature ~= nil then
@@ -149,6 +176,8 @@ if GLOBAL.TheNet:IsDedicated() then
         AddPlayerPostInit(function(inst)
             inst:ListenForEvent("itemget", OnPlayerItemGet)
             inst:ListenForEvent("equip", OnPlayerEquip)
+            inst:ListenForEvent("respawnfromghost", OnEntityRevive)
+            inst:ListenForEvent("respawnfromcorpse", OnEntityRevive)
         end)
     end)
 

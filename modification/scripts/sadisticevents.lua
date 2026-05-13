@@ -193,7 +193,7 @@ local sadisticevents = {
 }
 
 local function RollSadisticEvent(inst)
-    if math.random() > 1 then return end
+    if math.random() > 0.1 then return end
     local keys = {}
     for k, v in pairs(sadisticevents) do
         if v.name ~= currentevent then table.insert(keys, k) end

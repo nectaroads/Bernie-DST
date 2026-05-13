@@ -18,7 +18,8 @@ local lastents = {}
 local base = nil
 local portal = nil
 
-local unlock_prefabs = { treasurechest = "organize", cookpot = "cook", evergreen_stump = "dig", mound = "dig", gravestone = "dig", deciduoustree_stump = "dig", evergreen_tall = "chop", evergreen_sparse_tall = "chop", livingtree = "chop", berrybush = "gather", berrybush2 = "gather", sapling = "gather", grass = "gather", reeds = "gather", rock1 = "mine", rock2 = "mine", rock_flintless = "mine", rock_moon = "mine", rock_ice = "mine" }
+local unlock_prefabs = { berrybush = "gather", berrybush2 = "gather", sapling = "gather", grass = "gather", reeds = "gather" }
+--local unlock_prefabs = { treasurechest = "organize", cookpot = "cook", evergreen_stump = "dig", mound = "dig", gravestone = "dig", deciduoustree_stump = "dig", evergreen_tall = "chop", evergreen_sparse_tall = "chop", livingtree = "chop", berrybush = "gather", berrybush2 = "gather", sapling = "gather", grass = "gather", reeds = "gather", rock1 = "mine", rock2 = "mine", rock_flintless = "mine", rock_moon = "mine", rock_ice = "mine" }
 
 local ExecuteObjective = {}
 
@@ -156,6 +157,10 @@ ExecuteObjective.gather = function()
                 end
             end
         end
+        if not target or not target:IsValid() then
+            StopWork()
+            return
+        end
         local action = GLOBAL.BufferedAction(GLOBAL.companion, target, GLOBAL.ACTIONS.PICK)
         if action:IsValid() then GLOBAL.companion.components.locomotor:PushAction(action, true) end
         loop = loop + 1
@@ -173,7 +178,6 @@ ExecuteObjective.gather = function()
             return
         end
         DoGather(target)
-        return
     end
     DoGather()
 end
