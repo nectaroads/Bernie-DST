@@ -2,6 +2,13 @@ print('[Bernie] Starting Another-Rebalance module')
 
 local wigfridcombos = {}
 
+local bosses = { spiderqueen = { name = "High Weaver", blacklist = { spider = true, spider_warrior = true, spider_water = true, spider_dropper = true, spider_healer = true, spider_spitter = true, spider_moon = true, spider_hider = true } }, alterguardian_phase1_lunarrift = { name = "Celestial Revenant", blacklist = {} }, alterguardian_phase4_lunarrift = { name = "Celestial Scion", blacklist = {} }, wagboss_robot = { name = "W.A.R.B.O.T", blacklist = {} }, mock_dragonfly = { name = "Wilting Dragonfly", blacklist = {} }, mothergoose = { name = "The Mother Goose", blacklist = {} }, moonmaw_dragonfly = { name = "Moonmaw Dragonfly", blacklist = {} }, hoodedwidow = { name = "The Hooded Widow", blacklist = {} }, eyeofterror = { name = "The Eye of Terror", blacklist = {} }, dragonfly = { name = "Mother Dragonfly", blacklist = {} }, moose = { name = "The Moose/Goose", blacklist = {} }, bearger = { name = "Dormant Bearger", blacklist = {} }, mutatedbearger = { name = "Armored Bearger", blacklist = {} }, enraged_klaus = { name = "Vengeful Klaus ⚠", blacklist = {} }, mutateddeerclops = { name = "Crystal Deerclops", blacklist = {} }, twinofterror2 = { name = "Hungry Spazmatism", blacklist = {} }, antlion = { name = "Desert Antlion", blacklist = {} }, toadstool_dark = { name = "Misery Toadstool ⚠", blacklist = {} }, enraged_dragonfly = { name = "Burning Dragonfly ⚠", blacklist = {} }, twinofterror1 = { name = "Seeker Retinazor", blacklist = {} }, stalker_atrium = { name = "Ancient Fuelweaver", blacklist = {} }, sharkboi = { name = "Defiant Frostjaw", blacklist = {} }, mutatedwarg = { name = "Possessed Warg", blacklist = {} }, shadow_knight = { name = "Shadow Knight", blacklist = {} }, shadow_bishop = { name = "Shadow Bishop", blacklist = {} }, beequeen = { name = "Royal Bee Queen", blacklist = { beeguard = true, bee = true, killerbee = true } }, crabking = { name = "Mighty Crab King", blacklist = {} }, deerclops = { name = "Chilling Deerclops", blacklist = {} }, daywalker = { name = "Nightmare Werepig", blacklist = {} }, minotaur = { name = "Ancient Guardian", blacklist = {} }, daywalker2 = { name = "Scrappy Werepig", blacklist = {} }, malbatross = { name = "Flying Malbatross", blacklist = {} }, shadow_rook = { name = "Shadow Rook", blacklist = {} }, klaus = { name = "Wicked Klaus", blacklist = {} }, toadstool = { name = "Grotto Toadstool", blacklist = {} }, alterguardian_phase3 = { name = "Celestial Champion", blacklist = {} } }
+local aoecreatures = { tentacle = { name = "Tentacle", blacklist = {} } }
+
+for k, v in pairs(bosses) do
+    aoecreatures[k] = v
+end
+
 if GLOBAL.TheNet:IsDedicated() then
     local EventHandler = GLOBAL.EventHandler
     -- Tools
@@ -100,12 +107,33 @@ if GLOBAL.TheNet:IsDedicated() then
                 end
             end
 
-            -- Players are weaker when starving, freezing or overheating
-            if inst:HasTag("player") then
-                -- Wigfrids scale damage with combos
+            -- Wigfrids scale damage with combos
+            if damage and damage > 3 then
                 if inst.prefab == "wathgrithr" then
                     wigfridcombos[inst.GUID] = 0
+                else
+                    if inst.components.rideable ~= nil and inst.components.rideable.rider ~= nil and inst.components.rideable.rider.prefab == "wathgrithr" then
+                        wigfridcombos[inst.GUID] = 0
+                    end
                 end
+
+                if attacker.prefab == "wathgrithr" then
+                    if not wigfridcombos[attacker.GUID] then wigfridcombos[attacker.GUID] = 0 end
+                    wigfridcombos[attacker.GUID] = wigfridcombos[attacker.GUID] + 1
+                    if wigfridcombos[attacker.GUID] > 20 then wigfridcombos[attacker.GUID] = 20 end
+                    damage = damage + wigfridcombos[attacker.GUID]
+                else
+                    if attacker.components.rideable ~= nil and attacker.components.rideable.rider ~= nil and attacker.components.rideable.rider.prefab == "wathgrithr" then
+                        if not wigfridcombos[attacker.components.rideable.rider.GUID] then wigfridcombos[attacker.components.rideable.rider.GUID] = 0 end
+                        wigfridcombos[attacker.components.rideable.rider.GUID] = wigfridcombos[attacker.components.rideable.rider.GUID] + 1
+                        if wigfridcombos[attacker.components.rideable.rider.GUID] > 20 then wigfridcombos[attacker.components.rideable.rider.GUID] = 20 end
+                        damage = damage + wigfridcombos[attacker.components.rideable.rider.GUID]
+                    end
+                end
+            end
+
+            if inst:HasTag("player") then
+                -- Players are weaker when starving, freezing or overheating
                 -- Players takes extra 2 true-damage if temperature is not comfy enough.
                 if inst.components.temperature ~= nil then
                     local temp = inst.components.temperature
@@ -122,13 +150,6 @@ if GLOBAL.TheNet:IsDedicated() then
             end
 
             if attacker and attacker:HasTag("player") and damage and damage > 0 then
-                -- Wigfrids scale damage with combos
-                if attacker.prefab == "wathgrithr" then
-                    if not wigfridcombos[attacker.GUID] then wigfridcombos[attacker.GUID] = 0 end
-                    wigfridcombos[attacker.GUID] = wigfridcombos[attacker.GUID] + 1
-                    if wigfridcombos[attacker.GUID] > 20 then wigfridcombos[attacker.GUID] = 20 end
-                    damage = damage + wigfridcombos[attacker.GUID]
-                end
                 local multiplier = 1
                 -- Uncomfy players deal less damage.
                 if attacker.components.temperature ~= nil then
@@ -249,19 +270,18 @@ if GLOBAL.TheNet:IsDedicated() then
     end)
 
     -- Bosses rebalance
-    local bosses = { spiderqueen = { name = "High Weaver", blacklist = { spider = true, spider_warrior = true, spider_water = true, spider_dropper = true, spider_healer = true, spider_spitter = true, spider_moon = true, spider_hider = true } }, alterguardian_phase1_lunarrift = { name = "Celestial Revenant", blacklist = {} }, alterguardian_phase4_lunarrift = { name = "Celestial Scion", blacklist = {} }, wagboss_robot = { name = "W.A.R.B.O.T", blacklist = {} }, mock_dragonfly = { name = "Wilting Dragonfly", blacklist = {} }, mothergoose = { name = "The Mother Goose", blacklist = {} }, moonmaw_dragonfly = { name = "Moonmaw Dragonfly", blacklist = {} }, hoodedwidow = { name = "The Hooded Widow", blacklist = {} }, eyeofterror = { name = "The Eye of Terror", blacklist = {} }, dragonfly = { name = "Mother Dragonfly", blacklist = {} }, moose = { name = "The Moose/Goose", blacklist = {} }, bearger = { name = "Dormant Bearger", blacklist = {} }, mutatedbearger = { name = "Armored Bearger", blacklist = {} }, enraged_klaus = { name = "Vengeful Klaus ⚠", blacklist = {} }, mutateddeerclops = { name = "Crystal Deerclops", blacklist = {} }, twinofterror2 = { name = "Hungry Spazmatism", blacklist = {} }, antlion = { name = "Desert Antlion", blacklist = {} }, toadstool_dark = { name = "Misery Toadstool ⚠", blacklist = {} }, enraged_dragonfly = { name = "Burning Dragonfly ⚠", blacklist = {} }, twinofterror1 = { name = "Seeker Retinazor", blacklist = {} }, stalker_atrium = { name = "Ancient Fuelweaver", blacklist = {} }, sharkboi = { name = "Defiant Frostjaw", blacklist = {} }, mutatedwarg = { name = "Possessed Warg", blacklist = {} }, shadow_knight = { name = "Shadow Knight", blacklist = {} }, shadow_bishop = { name = "Shadow Bishop", blacklist = {} }, beequeen = { name = "Royal Bee Queen", blacklist = {} }, crabking = { name = "Mighty Crab King", blacklist = {} }, deerclops = { name = "Chilling Deerclops", blacklist = {} }, daywalker = { name = "Nightmare Werepig", blacklist = {} }, minotaur = { name = "Ancient Guardian", blacklist = {} }, daywalker2 = { name = "Scrappy Werepig", blacklist = {} }, malbatross = { name = "Flying Malbatross", blacklist = {} }, shadow_rook = { name = "Shadow Rook", blacklist = {} }, klaus = { name = "Wicked Klaus", blacklist = {} }, toadstool = { name = "Grotto Toadstool", blacklist = {} }, alterguardian_phase3 = { name = "Celestial Champion", blacklist = {} } }
-
-    for boss, _ in pairs(bosses) do
-        AddPrefabPostInit(boss, function(inst)
+    for creature, _ in pairs(aoecreatures) do
+        AddPrefabPostInit(creature, function(inst)
             inst:DoTaskInTime(0, function()
-                local data = bosses[inst.prefab]
-                if data == nil then return end
-                inst.name = data.name
-                if not inst:HasTag("epic") then inst:AddTag("epic") end
-                inst.DoAttack = function(self, target, weapon, projectile, stimuli, instancemult)
-                    if data.blacklist[target.prefab] then return end
-                    local range = self.hitrange or 3
-                    if self.components.combat ~= nil then self.components.combat:DoAreaAttack(target, range, weapon, nil, stimuli, nil, instancemult) end
+                local data = aoecreatures[inst.prefab]
+                if data == nil or inst.components.combat == nil then return end
+                local old_DoAttack = inst.components.combat.DoAttack
+                inst.components.combat.DoAttack = function(combat, target, weapon, projectile, stimuli, instancemult)
+                    if target == nil then return old_DoAttack(combat, target, weapon, projectile, stimuli, instancemult) end
+                    if data.blacklist ~= nil and data.blacklist[target.prefab] then return end
+                    local attacker = combat.inst
+                    local range = attacker.hitrange or 3
+                    combat:DoAreaAttack(target, range, weapon, function(guy) return not (guy ~= nil and data.blacklist ~= nil and data.blacklist[guy.prefab]) end, stimuli, nil, instancemult)
                 end
             end)
         end)
@@ -352,6 +372,18 @@ if GLOBAL.TheNet:IsDedicated() then
     TUNING.MAX_ENTITY_TEMP = 123.5
     TUNING.NO_BOSS_TIME = 0
 else
+end
+
+for boss, _ in pairs(bosses) do
+    AddPrefabPostInit(boss, function(inst)
+        inst:DoTaskInTime(0, function()
+            local data = bosses[inst.prefab]
+            if not data then return end
+            inst.name = data.name
+            inst.displayname = data.name
+            if not inst:HasTag("epic") then inst:AddTag("epic") end
+        end)
+    end)
 end
 
 -- New recipes

@@ -1,7 +1,7 @@
 name = "Bernie Server-Manager"
 description = "The ultimate server-tool."
 author = "peuloom"
-version = "1.4.7.1"
+version = "1.4.8.4.1"
 forumthread = "WIP"
 api_version = 10
 icon_atlas = "modicon.xml"
@@ -42,8 +42,8 @@ configuration_options = {
         default = true,
     },
     {
-        name = "Information-Popups",
-        hover = "Add some popups to your server, information is cool. Edit on /scripts/config/informationpopups.lua",
+        name = "Better-Hud",
+        hover = "Improves the hud, add some popups to your server, information is cool.",
         options = {
             { description = "Allow",  data = true },
             { description = "Forbid", data = false }

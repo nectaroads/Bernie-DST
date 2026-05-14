@@ -5,7 +5,7 @@ local immersiveworld = GetModConfigData("Immersive-World")
 local anotherrebalance = GetModConfigData("Another-Rebalance")
 
 local nicechat = GetModConfigData("Nice-Chat")
-local informationpopups = GetModConfigData("Information-Popups")
+local betterhud = GetModConfigData("Better-Hud")
 
 local propaganda = GetModConfigData("Propaganda")
 local fancyrpc = GetModConfigData("Fancy-RPC")
@@ -16,7 +16,7 @@ local isServer = GLOBAL.TheNet:IsDedicated() -- Load order
 modimport("scripts/experiments.lua")
 if not isServer and nicechat then modimport("scripts/nicechat.lua") end
 if isServer and propaganda then modimport("scripts/propaganda.lua") end
-if not isServer and informationpopups then modimport("scripts/informationpopups.lua") end
+if not isServer and betterhud then modimport("scripts/betterhud.lua") end
 if isServer and companionai then modimport("scripts/companionai.lua") end
 if antigriefing then modimport("scripts/antigriefing.lua") end
 if anticheat then modimport("scripts/anticheat.lua") end

@@ -34,13 +34,15 @@ function RaidEvent(inst, event, prefab, maxcreatures)
                 local radius = math.random(12, 18)
                 local sx = x + math.cos(angle) * radius
                 local sz = z + math.sin(angle) * radius
-                local fx = GLOBAL.SpawnPrefab("woby_dash_shadow_fx")
-                if fx ~= nil then fx.Transform:SetPosition(sx, 0, sz) end
-                local hound = GLOBAL.SpawnPrefab(prefab)
-                if hound ~= nil then
-                    hound.Transform:SetPosition(sx, 0, sz)
-                    if hound.components.combat ~= nil then hound.components.combat:SetTarget(target) end
-                    if hound.components.follower ~= nil then hound.components.follower:SetLeader(nil) end
+                if GLOBAL.TheWorld.Map:IsPassableAtPoint(sx, 0, sz) then
+                    local hound = GLOBAL.SpawnPrefab(prefab)
+                    local fx = GLOBAL.SpawnPrefab("woby_dash_shadow_fx")
+                    if fx ~= nil then fx.Transform:SetPosition(sx, 0, sz) end
+                    if hound ~= nil then
+                        hound.Transform:SetPosition(sx, 0, sz)
+                        if hound.components.combat ~= nil then hound.components.combat:SetTarget(target) end
+                        if hound.components.follower ~= nil then hound.components.follower:SetLeader(nil) end
+                    end
                 end
             end)
         end
