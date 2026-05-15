@@ -112,18 +112,19 @@ if GLOBAL.TheNet:IsDedicated() then
                 if inst.prefab == "wathgrithr" then
                     wigfridcombos[inst.GUID] = 0
                 else
-                    if inst.components.rideable ~= nil and inst.components.rideable.rider ~= nil and inst.components.rideable.rider.prefab == "wathgrithr" then
+                    if inst.components and inst.components.rideable ~= nil and inst.components.rideable.rider ~= nil and inst.components.rideable.rider.prefab == "wathgrithr" then
                         wigfridcombos[inst.GUID] = 0
                     end
                 end
 
-                if attacker.prefab == "wathgrithr" then
+                if attacker and attacker.prefab == "wathgrithr" then
                     if not wigfridcombos[attacker.GUID] then wigfridcombos[attacker.GUID] = 0 end
                     wigfridcombos[attacker.GUID] = wigfridcombos[attacker.GUID] + 1
                     if wigfridcombos[attacker.GUID] > 20 then wigfridcombos[attacker.GUID] = 20 end
                     damage = damage + wigfridcombos[attacker.GUID]
                 else
-                    if attacker.components.rideable ~= nil and attacker.components.rideable.rider ~= nil and attacker.components.rideable.rider.prefab == "wathgrithr" then
+                    if attacker and attacker.components and attacker.components.rideable ~= nil and attacker.components.rideable.rider ~= nil and attacker.components.rideable.rider.prefab == "wathgrithr" then
+                        damage = damage * 1.25
                         if not wigfridcombos[attacker.components.rideable.rider.GUID] then wigfridcombos[attacker.components.rideable.rider.GUID] = 0 end
                         wigfridcombos[attacker.components.rideable.rider.GUID] = wigfridcombos[attacker.components.rideable.rider.GUID] + 1
                         if wigfridcombos[attacker.components.rideable.rider.GUID] > 20 then wigfridcombos[attacker.components.rideable.rider.GUID] = 20 end
@@ -281,7 +282,8 @@ if GLOBAL.TheNet:IsDedicated() then
                     if data.blacklist ~= nil and data.blacklist[target.prefab] then return end
                     local attacker = combat.inst
                     local range = attacker.hitrange or 3
-                    combat:DoAreaAttack(target, range, weapon, function(guy) return not (guy ~= nil and data.blacklist ~= nil and data.blacklist[guy.prefab]) end, stimuli, nil, instancemult)
+                    old_DoAttack(combat, target, weapon, projectile, stimuli, instancemult)
+                    combat:DoAreaAttack(target, range, weapon, function(guy) return not (guy ~= nil and data.blacklist ~= nil and data.blacklist[guy.prefab]) end, stimuli, nil, nil)
                 end
             end)
         end)
@@ -293,7 +295,6 @@ if GLOBAL.TheNet:IsDedicated() then
     end)
 
     -- Tuning
-    TUNING.GAMEMODE_STARTING_ITEMS.DEFAULT.WILSON = { "backpack" }
     TUNING.WES_WORK_MULTIPLIER = 1
     TUNING.WONKEY_WALK_SPEED_PENALTY = 0
     TUNING.WONKEY_SPEED_BONUS = 1.5
@@ -352,11 +353,6 @@ if GLOBAL.TheNet:IsDedicated() then
     TUNING.BEEQUEEN_HIT_RANGE = 5
     TUNING.BEEQUEEN_SPAWNGUARDS_CD = { 28, 26, 24, 22 }
     TUNING.BEEQUEEN_FOCUSTARGET_CD = { 120, 60, 32, 24 }
-    TUNING.BEEQUEEN_MIN_GUARDS_PER_SPAWN = 3
-    TUNING.BEEQUEEN_MAX_GUARDS_PER_SPAWN = 4
-    TUNING.BEEQUEEN_TOTAL_GUARDS = 6
-    TUNING.BEEQUEEN_HONEYTRAIL_SPEED_PENALTY = 0.1
-    TUNING.SPAWN_KLAUS = true
 
     TUNING.HEATROCK_NUMUSES = TUNING.HEATROCK_NUMUSES * 3
     TUNING.HEAT_ROCK_CARRIED_BONUS_HEAT_FACTOR = 0.8

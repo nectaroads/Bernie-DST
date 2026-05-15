@@ -1,7 +1,7 @@
 return {
     cooldown = 30, -- minutes
     pool = {
-        "Quer acesso ao código fonte? github/nectaroads/Bernie-DST",
+        "Quer acesso ao código fonte? github.com/nectaroads/Bernie-DST",
         "Cuidado! Beefalos distribuem dano para quem está acima dele.",
         "Beefalos não perdem obediência ao serem atacados, que conveniente!",
         "Walter não consegue manter equilíbrio em Beefalos.",
@@ -23,6 +23,7 @@ return {
         "Grieffing é sempre detectado, cuidado ao cometer crimes!",
         "Flares revelam parte do mapa para seus aliados.",
         "Beefalos não perdem amizade quando golpeados por sobreviventes.",
-        "TODOS os revives cortam uma fatia de sua vida, exceto Meat Effigy"
+        "TODOS os revives cortam uma fatia de sua vida, exceto Meat Effigy",
+        "Você pode mirar Flares usando seu mapa, assim pode compartilhar localizações."
     }
 }

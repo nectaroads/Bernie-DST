@@ -2,40 +2,76 @@ print('[Bernie] Starting Immersive-World module')
 
 local config = GLOBAL.LoadConfig("immersiveworld.lua")
 
--- Gnome Stuff
-local function OnGnomeEscape(inst, owner)
-    if owner == nil or owner.components.inventory == nil then return end
-    local dice = math.random(0, 2)
-    if dice == 0 then return end
-    inst:DoTaskInTime(0, function()
-        if inst.components.inventoryitem == nil then return end
-        local realowner = inst.components.inventoryitem.owner
-        if realowner == nil or realowner.components.inventory == nil then return end
-        if realowner.SoundEmitter then realowner.SoundEmitter:PlaySound("yotb_2021/common/hitching_post/unhitching") end
-        realowner.sg:GoToState("slip")
-        realowner.components.inventory:DropItem(inst, true, true)
-        if dice == 2 then
-            local x, y, z = realowner.Transform:GetWorldPosition()
-            local theta = math.random() * GLOBAL.TWOPI
-            local radius = math.random(6, 12)
-            local offset = GLOBAL.FindWalkableOffset(GLOBAL.Vector3(x, y, z), theta, radius, 8, true)
-            if offset ~= nil then
-                inst.Transform:SetPosition(x + offset.x, 0, z + offset.z)
-                local effect = GLOBAL.SpawnPrefab("shadow_merm_spawn_poof_fx")
-                if effect then effect.Transform:SetPosition(x + offset.x, 0, z + offset.z) end
-            end
-        end
-    end)
-end
-
-AddPrefabPostInit("trinket_4", function(inst)
-    if not GLOBAL.TheWorld.ismastersim then return end
-    inst:ListenForEvent("onputininventory", OnGnomeEscape)
+-- Aimable flares
+local FLARE_DESTINATION = AddAction("FLARE_DESTINATION", "Flare Destination", function(act)
+    local doer = act.doer
+    if doer == nil or doer.components.inventory == nil then return false end
+    local flare_stack = doer.components.inventory:FindItem(function(item) return item.prefab == "miniflare" end)
+    if flare_stack == nil then return false end
+    local pt = act:GetActionPoint()
+    if pt == nil then return false end
+    local x, y, z = pt:Get()
+    local flare = flare_stack
+    if flare_stack.components.stackable ~= nil and flare_stack.components.stackable:IsStack() then
+        flare = flare_stack.components.stackable:Get(1)
+    else
+        doer.components.inventory:RemoveItem(flare_stack)
+    end
+    flare.flare_destination = GLOBAL.Vector3(x, 0, z)
+    flare.Transform:SetPosition(doer.Transform:GetWorldPosition())
+    if flare.components.inventoryitem ~= nil then flare.components.inventoryitem:OnDropped(true) end
+    return true
 end)
 
-AddPrefabPostInit("trinket_13", function(inst)
+FLARE_DESTINATION.rmb = true
+FLARE_DESTINATION.map_only = true
+FLARE_DESTINATION.map_works_on_unexplored = true
+FLARE_DESTINATION.closes_map = true
+FLARE_DESTINATION.instant = true
+
+local function HasFlare(inst)
+    local inv = inst.replica.inventory
+    return inv ~= nil and inv:Has("miniflare", 1)
+end
+
+AddPlayerPostInit(function(inst)
+    inst:DoTaskInTime(0, function()
+        if inst.components.playeractionpicker == nil then return end
+        local old_pointspecialactionsfn = inst.components.playeractionpicker.pointspecialactionsfn
+        inst.components.playeractionpicker.pointspecialactionsfn = function(inst, pos, useitem, right, usereticulepos)
+            local actions = {}
+            if old_pointspecialactionsfn ~= nil then
+                local old_actions = old_pointspecialactionsfn(inst, pos, useitem, right, usereticulepos)
+                if old_actions ~= nil then
+                    for _, action in ipairs(old_actions) do
+                        table.insert(actions, action)
+                    end
+                end
+            end
+            if right and useitem == nil and inst.checkingmapactions and HasFlare(inst) then table.insert(actions, GLOBAL.ACTIONS.FLARE_DESTINATION) end
+            return actions
+        end
+    end)
+end)
+
+AddPrefabPostInit("miniflare", function(inst)
     if not GLOBAL.TheWorld.ismastersim then return end
-    inst:ListenForEvent("onputininventory", OnGnomeEscape)
+    if inst.components.stackable == nil then
+        inst:AddComponent("stackable")
+        inst.components.stackable.maxsize = GLOBAL.TUNING.STACK_SIZE_LARGEITEM
+    end
+    inst:DoTaskInTime(0, function()
+        if inst.components.burnable == nil then return end
+        local old_onignite = inst.components.burnable.onignite
+        inst.components.burnable:SetOnIgniteFn(function(inst, source, doer)
+            if inst.flare_destination ~= nil then
+                inst:ListenForEvent("animover", function(inst)
+                    if inst.flare_destination ~= nil then inst.Transform:SetPosition(inst.flare_destination.x, 0, inst.flare_destination.z) end
+                end)
+            end
+            if old_onignite ~= nil then old_onignite(inst, source, doer) end
+        end)
+    end)
 end)
 
 -- MMO Stuff: Sitting
@@ -50,6 +86,86 @@ for _, prefab in ipairs(sittable) do
 end
 
 if GLOBAL.TheNet:IsDedicated() then
+    -- Any tool is burnable
+    AddPrefabPostInitAny(function(inst)
+        if not GLOBAL.TheWorld.ismastersim then return end
+        inst:DoTaskInTime(0, function()
+            if inst.prefab == "stinger" then
+                if inst.components.fuel == nil then inst:AddComponent("fuel") end
+                inst.components.fuel.fuelvalue = 3
+            end
+
+            if inst.components.finiteuses ~= nil then
+                if inst.components.fuel == nil then inst:AddComponent("fuel") end
+                inst.components.fuel.fueltype = GLOBAL.FUELTYPE.BURNABLE
+                local uses = inst.components.finiteuses.total or 100
+                if uses <= 5 then
+                    inst.components.fuel.fuelvalue = GLOBAL.TUNING.TINY_FUEL
+                elseif uses <= 25 then
+                    inst.components.fuel.fuelvalue = GLOBAL.TUNING.SMALL_FUEL
+                elseif uses <= 100 then
+                    inst.components.fuel.fuelvalue = GLOBAL.TUNING.MED_FUEL
+                else
+                    inst.components.fuel.fuelvalue = GLOBAL.TUNING.LARGE_FUEL
+                end
+            end
+        end)
+    end)
+
+    -- Anything rottable is a fertilizer
+    AddPrefabPostInitAny(function(inst)
+        if not GLOBAL.TheWorld.ismastersim then return end
+        inst:DoTaskInTime(0, function()
+            if inst.components.perishable ~= nil then
+                if inst.components.fertilizer == nil then inst:AddComponent("fertilizer") end
+                local perish = inst.components.perishable.perishtime or 0
+                if perish <= GLOBAL.TUNING.PERISH_FAST then
+                    inst.components.fertilizer.fertilizervalue = 2
+                elseif perish <= GLOBAL.TUNING.PERISH_MED then
+                    inst.components.fertilizer.fertilizervalue = 5
+                else
+                    inst.components.fertilizer.fertilizervalue = 10
+                end
+            end
+        end)
+    end)
+
+    -- Gnome Stuff
+    local function OnGnomeEscape(inst, owner)
+        if owner == nil or owner.components.inventory == nil then return end
+        local dice = math.random(0, 2)
+        if dice == 0 then return end
+        inst:DoTaskInTime(0, function()
+            if inst.components.inventoryitem == nil then return end
+            local realowner = inst.components.inventoryitem.owner
+            if realowner == nil or realowner.components.inventory == nil then return end
+            if realowner.SoundEmitter then realowner.SoundEmitter:PlaySound("yotb_2021/common/hitching_post/unhitching") end
+            if realowner.sg then realowner.sg:GoToState("slip") end
+            realowner.components.inventory:DropItem(inst, true, true)
+            if dice == 2 then
+                local x, y, z = realowner.Transform:GetWorldPosition()
+                local theta = math.random() * GLOBAL.TWOPI
+                local radius = math.random(6, 12)
+                local offset = GLOBAL.FindWalkableOffset(GLOBAL.Vector3(x, y, z), theta, radius, 8, true)
+                if offset ~= nil then
+                    inst.Transform:SetPosition(x + offset.x, 0, z + offset.z)
+                    local effect = GLOBAL.SpawnPrefab("shadow_merm_spawn_poof_fx")
+                    if effect then effect.Transform:SetPosition(x + offset.x, 0, z + offset.z) end
+                end
+            end
+        end)
+    end
+
+    AddPrefabPostInit("trinket_4", function(inst)
+        if not GLOBAL.TheWorld.ismastersim then return end
+        inst:ListenForEvent("onputininventory", OnGnomeEscape)
+    end)
+
+    AddPrefabPostInit("trinket_13", function(inst)
+        if not GLOBAL.TheWorld.ismastersim then return end
+        inst:ListenForEvent("onputininventory", OnGnomeEscape)
+    end)
+
     -- Flare reveals map
     AddSimPostInit(function()
         if not GLOBAL.TheWorld.ismastersim then return end
@@ -57,14 +173,14 @@ if GLOBAL.TheNet:IsDedicated() then
             if data == nil or data.pt == nil then return end
             local x, y, z = data.pt:Get()
             for _, player in ipairs(GLOBAL.AllPlayers) do
-                if player ~= nil and player:IsValid() and player.player_classified ~= nil and player.player_classified.MapExplorer ~= nil
-                then
-                    player.player_classified.MapExplorer:RevealArea(x, y, z)
-                end
+                if player ~= nil and player:IsValid() and player.player_classified ~= nil and player.player_classified.MapExplorer ~= nil then player.player_classified.MapExplorer:RevealArea(x, y, z) end
             end
         end
         GLOBAL.TheWorld:ListenForEvent("miniflare_detonated", function(world, data)
-            FlareDoReveal(data)
+            if data == nil or data.pt == nil or data.igniter == nil then return end
+            local x, y, z = data.pt:Get()
+            local player = data.igniter
+            if player:CanSeePointOnMiniMap(x, y, z) then FlareDoReveal(data) end
         end)
         GLOBAL.TheWorld:ListenForEvent("megaflare_detonated", function(world, data)
             FlareDoReveal(data)

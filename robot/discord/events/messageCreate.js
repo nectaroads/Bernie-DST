@@ -55,7 +55,6 @@ module.exports = async (client, message) => {
 
   const messageData = { key: 'bernie_rpc_client_message', rpc: 'bernie_rpc_client_message', type: 'discord', message: truncatedMessage, name: message.member?.displayName || message.author.username, colour: colour };
   messagesbuffer.push(messageData);
-
   chathistory.push(messageData);
 
   while (chathistory.length > 5) {
