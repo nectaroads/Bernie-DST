@@ -1,7 +1,5 @@
 print('[Bernie] Starting Response-Handler module')
 
-local serverUrl = "http://localhost:24574/bernie"
-
 local HandleServerResponse = {}
 
 HandleServerResponse["bernie_rpc_client_message"] = function(data)
@@ -38,7 +36,7 @@ end
 
 function SendUpdateRequest()
     local jsonClient = GLOBAL.json.encode({ key = "update" })
-    GLOBAL.TheSim:QueryServer(serverUrl, function(result, isSuccessful, resultCode)
+    GLOBAL.TheSim:QueryServer(GLOBAL.serverUrl, function(result, isSuccessful, resultCode)
         if not (isSuccessful and resultCode == 200 and result) then return end
         local data = GLOBAL.json.decode(result)
         if data[1] ~= nil then

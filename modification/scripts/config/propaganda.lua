@@ -24,6 +24,7 @@ return {
         "Flares revelam parte do mapa para seus aliados.",
         "Beefalos não perdem amizade quando golpeados por sobreviventes.",
         "TODOS os revives cortam uma fatia de sua vida, exceto Meat Effigy",
-        "Você pode mirar Flares usando seu mapa, assim pode compartilhar localizações."
+        "Você pode mirar Flares usando seu mapa, assim pode compartilhar localizações.",
+        "Você sabia? Chester pode comer cinzas e transformar em itens queimados previamente."
     }
 }

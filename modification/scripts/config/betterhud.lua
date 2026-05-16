@@ -13,7 +13,7 @@ return {
     guidebook = {
         {
             title = "Guidebook",
-            description = "Exemplo..."
+            description = "Exemplo...\nabcdefghijklmnopqrstuvxz1234567890!@#$%*"
         },
         {
             title = "Sobre o Mundo =",

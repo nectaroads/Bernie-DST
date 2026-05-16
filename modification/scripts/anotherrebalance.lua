@@ -67,6 +67,17 @@ if GLOBAL.TheNet:IsDedicated() then
             -- If a boss is being attacked
             if inst:HasTag("epic") then
                 -- Alone players are stronger against bosses
+                local rider = attacker and attacker.components.rideable and attacker.components.rideable:GetRider()
+                if rider and damage and damage > 0 then
+                    if not bossdamagehistory[inst.GUID] then bossdamagehistory[inst.GUID] = {} end
+                    if not bossdamagehistory[inst.GUID][rider.GUID] then
+                        bossdamagehistory[inst.GUID][rider.GUID] = true
+                        if not bossdamagehistory[inst.GUID].size then bossdamagehistory[inst.GUID].size = 0 end
+                        bossdamagehistory[inst.GUID].size = bossdamagehistory[inst.GUID].size + 1
+                    end
+                    if bossdamagehistory[rider.GUID].size <= 1 then damage = damage * 1.3 end
+                end
+
                 if attacker and attacker:HasTag("player") then
                     if not bossdamagehistory[inst.GUID] then bossdamagehistory[inst.GUID] = {} end
                     if not bossdamagehistory[inst.GUID][attacker.GUID] then
@@ -74,7 +85,7 @@ if GLOBAL.TheNet:IsDedicated() then
                         if not bossdamagehistory[inst.GUID].size then bossdamagehistory[inst.GUID].size = 0 end
                         bossdamagehistory[inst.GUID].size = bossdamagehistory[inst.GUID].size + 1
                     end
-                    if bossdamagehistory[inst.GUID].size <= 1 then damage = damage * 1.5 end
+                    if bossdamagehistory[inst.GUID].size <= 1 then damage = damage * 1.3 end
                 end
                 if bossdamagehistory[inst.GUID] and damage >= inst.components.health.currenthealth then bossdamagehistory[inst.GUID] = nil end
             end
@@ -151,6 +162,18 @@ if GLOBAL.TheNet:IsDedicated() then
             end
 
             if attacker and attacker:HasTag("player") and damage and damage > 0 then
+                -- Wanda pocketwatch horror damage partially ignores planar entity resistance
+                if attacker.prefab == "wanda" then
+                    local weapon = attacker.components.combat ~= nil and attacker.components.combat:GetWeapon() or nil
+                    if weapon ~= nil and weapon.prefab == "pocketwatch_weapon" and (weapon.horrordamage or 0) > 0 and inst.components.planarentity ~= nil
+                    then
+                        local wanted_damage = damage
+                        local full_pierce_damage = ((((wanted_damage / 4) + 8) ^ 2) - 64) / 4
+                        damage = wanted_damage + ((full_pierce_damage - wanted_damage) * 0.6)
+                        weapon.horrordamage = math.max((weapon.horrordamage or 0) - 1, 0)
+                    end
+                end
+
                 local multiplier = 1
                 -- Uncomfy players deal less damage.
                 if attacker.components.temperature ~= nil then
@@ -289,13 +312,46 @@ if GLOBAL.TheNet:IsDedicated() then
         end)
     end
 
+    -- Wanda rework
+    local HORROR_DAMAGE_PER_FUEL = 50
+
+    AddPrefabPostInit("pocketwatch_weapon", function(inst)
+        if not GLOBAL.TheWorld.ismastersim then return end
+        inst.horrordamage = inst.horrordamage or 0
+        local old_OnSave = inst.OnSave
+        inst.OnSave = function(inst, data)
+            if old_OnSave ~= nil then old_OnSave(inst, data) end
+            data.horrordamage = inst.horrordamage or 0
+        end
+        local old_OnLoad = inst.OnLoad
+        inst.OnLoad = function(inst, data)
+            if old_OnLoad ~= nil then old_OnLoad(inst, data) end
+            inst.horrordamage = data ~= nil and data.horrordamage or 0
+        end
+        inst:DoTaskInTime(0, function(inst)
+            if inst.components.fueled == nil or inst.components.fueled.TakeFuelItem == nil then return end
+            local old_TakeFuelItem = inst.components.fueled.TakeFuelItem
+            inst.components.fueled.TakeFuelItem = function(self, item, doer, ...)
+                local is_horrorfuel = item ~= nil and item.prefab == "horrorfuel"
+                local result = old_TakeFuelItem(self, item, doer, ...)
+                if result and is_horrorfuel then
+                    inst.horrordamage = (inst.horrordamage or 0) + HORROR_DAMAGE_PER_FUEL
+                end
+                return result
+            end
+        end)
+    end)
+
     -- Walrus can drop 2 tusks
     AddPrefabPostInit("walrus", function()
         GLOBAL.SetSharedLootTable('walrus', { { 'meat', 1.00 }, { 'blowdart_pipe', 0.6 }, { 'walrushat', 0.40 }, { 'walrus_tusk', 0.3 }, { 'walrus_tusk', 0.3 } })
     end)
 
     -- Tuning
+    TUNING.WES_DAMAGE_MULT = 1
     TUNING.WES_WORK_MULTIPLIER = 1
+    TUNING.BALLOON_DAMAGE = 20
+    TUNING.BALLOON_ATTACK_RANGE = 3
     TUNING.WONKEY_WALK_SPEED_PENALTY = 0
     TUNING.WONKEY_SPEED_BONUS = 1.5
     TUNING.WONKEY_TIME_TO_RUN = 2
@@ -304,13 +360,13 @@ if GLOBAL.TheNet:IsDedicated() then
     TUNING.SHADOW_PILLAR_DURATION_BOSS = 6
     TUNING.SHADOW_PILLAR_DURATION_PLAYER = 3
 
-    TUNING.BEEFALO_HUNGER_RATE = TUNING.BEEFALO_HUNGER_RATE * 0.9
+    TUNING.BEEFALO_HUNGER_RATE = TUNING.BEEFALO_HUNGER_RATE * 0.8
     TUNING.BEEFALO_DOMESTICATION_ATTACKED_BY_PLAYER_DOMESTICATION = 0
     TUNING.BEEFALO_DOMESTICATION_ATTACKED_DOMESTICATION = 0
     TUNING.BEEFALO_DOMESTICATION_LOSE_DOMESTICATION = 0
     TUNING.BEEFALO_DOMESTICATION_ATTACKED_OBEDIENCE = 0
-    TUNING.BEEFALO_DOMESTICATION_GAIN_DOMESTICATION = TUNING.BEEFALO_DOMESTICATION_GAIN_DOMESTICATION * 1.1
-    TUNING.BEEFALO_DOMESTICATION_BRUSHED_DOMESTICATION = TUNING.BEEFALO_DOMESTICATION_BRUSHED_DOMESTICATION * 1.1
+    TUNING.BEEFALO_DOMESTICATION_GAIN_DOMESTICATION = TUNING.BEEFALO_DOMESTICATION_GAIN_DOMESTICATION * 1.2
+    TUNING.BEEFALO_DOMESTICATION_BRUSHED_DOMESTICATION = TUNING.BEEFALO_DOMESTICATION_BRUSHED_DOMESTICATION * 1.2
 
     TUNING.OCEANTREE_STAGES_TO_SUPERTALL = 2
 

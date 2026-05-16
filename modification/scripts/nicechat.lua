@@ -1,6 +1,6 @@
 print('[Bernie] Starting Nice-Chat module')
 
-Assets = { Asset("IMAGE", "images/profileflair_ashley.tex"), Asset("ATLAS", "images/profileflair_ashley.xml"), Asset("IMAGE", "images/profileflair_bernie.tex"), Asset("ATLAS", "images/profileflair_bernie.xml"), Asset("IMAGE", "images/profileflair_willow.tex"), Asset("ATLAS", "images/profileflair_willow.xml"), Asset("IMAGE", "images/profileflair_global.tex"), Asset("ATLAS", "images/profileflair_global.xml"), Asset("IMAGE", "images/profileflair_private.tex"), Asset("ATLAS", "images/profileflair_private.xml"), Asset("IMAGE", "images/profileflair_discord.tex"), Asset("ATLAS", "images/profileflair_discord.xml"), Asset("IMAGE", "images/profileflair_staffdiscord.tex"), Asset("ATLAS", "images/profileflair_staffdiscord.xml"), Asset("IMAGE", "images/profileflair_server.tex"), Asset("ATLAS", "images/profileflair_server.xml") }
+Assets = { Asset("IMAGE", "images/profileflair_alert.tex"), Asset("ATLAS", "images/profileflair_alert.xml"), Asset("IMAGE", "images/profileflair_ashley.tex"), Asset("ATLAS", "images/profileflair_ashley.xml"), Asset("IMAGE", "images/profileflair_bernie.tex"), Asset("ATLAS", "images/profileflair_bernie.xml"), Asset("IMAGE", "images/profileflair_willow.tex"), Asset("ATLAS", "images/profileflair_willow.xml"), Asset("IMAGE", "images/profileflair_global.tex"), Asset("ATLAS", "images/profileflair_global.xml"), Asset("IMAGE", "images/profileflair_private.tex"), Asset("ATLAS", "images/profileflair_private.xml"), Asset("IMAGE", "images/profileflair_discord.tex"), Asset("ATLAS", "images/profileflair_discord.xml"), Asset("IMAGE", "images/profileflair_staffdiscord.tex"), Asset("ATLAS", "images/profileflair_staffdiscord.xml"), Asset("IMAGE", "images/profileflair_server.tex"), Asset("ATLAS", "images/profileflair_server.xml") }
 
 local flairProfiles = {
     ashley = { name = "Ashley", colour = { 0.173, 0.463, 0.604, 1 }, flair = "profileflair_ashley" },
@@ -10,7 +10,8 @@ local flairProfiles = {
     private = { name = "Private", colour = { 0.447, 0.463, 0.529, 1 }, flair = "profileflair_private" },
     discord = { name = "Discord", colour = { 0.549, 0.596, 0.855, 1 }, flair = "profileflair_discord" },
     staff = { name = "Staff", colour = { 0.8706, 0.5725, 0.3843, 1 }, flair = "profileflair_staffdiscord" },
-    server = { name = "Server", colour = { 0.298, 0.251, 0.263, 1 }, flair = "profileflair_server" }
+    server = { name = "Server", colour = { 0.298, 0.251, 0.263, 1 }, flair = "profileflair_server" },
+    alert = { name = "Alert", colour = { 0.85, 0.55, 0.26, 1 }, flair = "profileflair_alert" },
 }
 
 local old_GetProfileFlairAtlasAndTex = GLOBAL.GetProfileFlairAtlasAndTex
@@ -28,7 +29,6 @@ end
 
 GLOBAL.custommessage = nil
 
--- God toasting dammit that took toasting 6 toasting hours, toast.
 require("chathistory")
 
 if GLOBAL.ChatHistory and not GLOBAL.ChatHistory._bernie_colour_patch then

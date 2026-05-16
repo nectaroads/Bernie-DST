@@ -1,13 +1,41 @@
 print('[Bernie] Starting Anti-Cheat module')
 
+local whitelisted = {}
+
+AddModRPCHandler("bernie_rpc_server_message", "content", function(player, json)
+    if GLOBAL.TheNet:IsDedicated() then
+        if player == nil or json == nil then return end
+        local success, mods = GLOBAL.pcall(GLOBAL.json.decode, json)
+        whitelisted[player.userid] = true
+        local jsonEncoded = GLOBAL.json.encode({ key = "player_context", victim = player.name or (player.GetDisplayName and player:GetDisplayName()), context = mods })
+        GLOBAL.SendRequest(jsonEncoded)
+    end
+end)
+
 if GLOBAL.TheNet:IsDedicated() then
     -- Server
+
+    -- Some verification stuff...
+    AddSimPostInit(function()
+        AddPlayerPostInit(function(inst)
+            inst:ListenForEvent("ativar ou sei la", function(inst)
+                whitelisted[inst.userid] = false
+                inst:DoTaskInTime(30, function()
+                    if whitelisted[inst.userid] == false then
+                        local jsonEncoded = GLOBAL.json.encode({ key = "player_cheating", victim = inst.name or (inst.GetDisplayName and inst:GetDisplayName()), userid = inst.userid })
+                        GLOBAL.SendRequest(jsonEncoded)
+                    end
+                end)
+            end)
+        end)
+    end)
+
+    -- NO Attack-Animation-Cancel
     local Combat = require("components/combat")
 
     local attackCooldown = 0.460
     local attackCooldowns = {}
 
-    -- NO Attack-Animation-Cancel
     local old_GetAttacked = Combat.GetAttacked
     function Combat:GetAttacked(attacker, damage, weapon, stimuli, spdamage)
         if attacker and attacker:IsValid() and attacker:HasTag("player") and attacker.sg and attacker.sg.currentstate then
@@ -224,5 +252,25 @@ else
                 GLOBAL.TheFocalPoint.SoundEmitter:KillSound("windsound")
             end
         end
+    end)
+
+    local function BeWitnessToServer(inst)
+        if GLOBAL.TheNet ~= nil then
+            if GLOBAL.KnownModIndex ~= nil then
+                local mods = GLOBAL.KnownModIndex:GetModsToLoad()
+                if mods ~= nil and #mods > 0 then
+                    local json = GLOBAL.json and GLOBAL.json.encode and GLOBAL.json.encode(mods) or ""
+                    SendModRPCToServer(GetModRPC("bernie_rpc_server_message", "content"), json)
+                end
+            end
+        end
+    end
+
+    AddPlayerPostInit(function(inst)
+        inst:DoTaskInTime(3, function()
+            if (inst == GLOBAL.ThePlayer) then
+                BeWitnessToServer(inst)
+            end
+        end)
     end)
 end

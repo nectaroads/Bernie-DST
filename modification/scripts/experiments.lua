@@ -1,5 +1,7 @@
 print('[Bernie] Starting Experiments module')
 
+GLOBAL.serverUrl = "http://localhost:24574/bernie"
+
 GLOBAL.DumpTable = function(t, max_depth, level, visited)
     level = level or 0
     max_depth = max_depth or 1
@@ -61,12 +63,11 @@ end
 
 if not GLOBAL.TheNet:IsDedicated() then return end -- Only server
 
-local serverUrl = "http://localhost:24574/bernie"
 GLOBAL.HandleShardFunction = {}
 GLOBAL.RPCS = {}
 
 GLOBAL.SendRequest = function(json)
-    GLOBAL.TheSim:QueryServer(serverUrl, function(result, isSuccessful, resultCode)
+    GLOBAL.TheSim:QueryServer(GLOBAL.serverUrl, function(result, isSuccessful, resultCode)
         if not (isSuccessful and resultCode == 200 and result) then return end
     end, "POST", json)
 end

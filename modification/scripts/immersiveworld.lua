@@ -90,11 +90,6 @@ if GLOBAL.TheNet:IsDedicated() then
     AddPrefabPostInitAny(function(inst)
         if not GLOBAL.TheWorld.ismastersim then return end
         inst:DoTaskInTime(0, function()
-            if inst.prefab == "stinger" then
-                if inst.components.fuel == nil then inst:AddComponent("fuel") end
-                inst.components.fuel.fuelvalue = 3
-            end
-
             if inst.components.finiteuses ~= nil then
                 if inst.components.fuel == nil then inst:AddComponent("fuel") end
                 inst.components.fuel.fueltype = GLOBAL.FUELTYPE.BURNABLE
@@ -113,22 +108,22 @@ if GLOBAL.TheNet:IsDedicated() then
     end)
 
     -- Anything rottable is a fertilizer
-    AddPrefabPostInitAny(function(inst)
-        if not GLOBAL.TheWorld.ismastersim then return end
-        inst:DoTaskInTime(0, function()
-            if inst.components.perishable ~= nil then
-                if inst.components.fertilizer == nil then inst:AddComponent("fertilizer") end
-                local perish = inst.components.perishable.perishtime or 0
-                if perish <= GLOBAL.TUNING.PERISH_FAST then
-                    inst.components.fertilizer.fertilizervalue = 2
-                elseif perish <= GLOBAL.TUNING.PERISH_MED then
-                    inst.components.fertilizer.fertilizervalue = 5
-                else
-                    inst.components.fertilizer.fertilizervalue = 10
-                end
-            end
-        end)
-    end)
+    --AddPrefabPostInitAny(function(inst)
+    --    if inst.components.perishable ~= nil and inst.components.edible == nil then return end
+    --    inst:DoTaskInTime(0, function()
+    --        if inst.components.perishable ~= nil then
+    --            if inst.components.fertilizer == nil then inst:AddComponent("fertilizer") end
+    --            local perish = inst.components.perishable.perishtime or 0
+    --            if perish <= GLOBAL.TUNING.PERISH_FAST then
+    --                inst.components.fertilizer.fertilizervalue = 2
+    --            elseif perish <= GLOBAL.TUNING.PERISH_MED then
+    --                inst.components.fertilizer.fertilizervalue = 5
+    --            else
+    --                inst.components.fertilizer.fertilizervalue = 10
+    --             end
+    --        end
+    --    end)
+    --end)
 
     -- Gnome Stuff
     local function OnGnomeEscape(inst, owner)
