@@ -1,42 +1,40 @@
 print('[Bernie] Starting Better-Hud module')
 
 -- Hide Admin Badge
-local function HideAdminBadge(target)
-    if target ~= nil then
-        for _, player in ipairs(target) do
-            if player then player.adminBadge:Hide() end
-        end
+local function HideAdminBadge(list)
+    if list == nil then return end
+    for _, v in pairs(list) do
+        local widget = v.widget or v
+        if widget ~= nil and widget.adminBadge ~= nil then widget.adminBadge:Hide() end
     end
 end
 
-AddClassPostConstruct("screens/playerstatusscreen", function(inst)
-    local old_DoInit = inst.DoInit
-    function inst:DoInit(ClientObjs)
+AddClassPostConstruct("screens/playerstatusscreen", function(self)
+    local old_DoInit = self.DoInit
+    function self:DoInit(ClientObjs)
         old_DoInit(self, ClientObjs)
-        HideAdminBadge(inst.player_widgets)
-        if inst.scroll_list and inst.scroll_list.updatefn then
-            local scroll_updateFn = inst.scroll_list.updatefn
-            if scroll_updateFn ~= nil then
-                function inst.scroll_list.updatefn(playerListing, client, i)
-                    scroll_updateFn(playerListing, client, i)
-                    playerListing.adminBadge:Hide()
-                end
+        HideAdminBadge(self.player_widgets)
+        if self.scroll_list ~= nil and self.scroll_list.updatefn ~= nil then
+            local old_updatefn = self.scroll_list.updatefn
+            self.scroll_list.updatefn = function(playerListing, client, i)
+                old_updatefn(playerListing, client, i)
+                if playerListing ~= nil and playerListing.adminBadge ~= nil then playerListing.adminBadge:Hide() end
             end
         end
     end
 end)
 
-AddClassPostConstruct("widgets/redux/playerlist", function(inst)
-    local old_BuildPlayerList = inst.BuildPlayerList
-    function inst:BuildPlayerList(ClientObjs)
+AddClassPostConstruct("widgets/redux/playerlist", function(self)
+    local old_BuildPlayerList = self.BuildPlayerList
+    function self:BuildPlayerList(ClientObjs)
         old_BuildPlayerList(self, ClientObjs)
-        HideAdminBadge(inst.scroll_list.children)
-        if inst.scroll_list and inst.scroll_list.update_fn then
-            local scroll_updateFn = inst.scroll_list.update_fn
-            if scroll_updateFn ~= nil then
-                function inst.scroll_list.update_fn(context, widget, data, index)
-                    scroll_updateFn(context, widget, data, index)
-                    widget.adminBadge:Hide()
+        if self.scroll_list ~= nil then
+            HideAdminBadge(self.scroll_list.children)
+            if self.scroll_list.update_fn ~= nil then
+                local old_updatefn = self.scroll_list.update_fn
+                self.scroll_list.update_fn = function(context, widget, data, index)
+                    old_updatefn(context, widget, data, index)
+                    if widget ~= nil and widget.adminBadge ~= nil then widget.adminBadge:Hide() end
                 end
             end
         end

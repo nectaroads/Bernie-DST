@@ -2,6 +2,9 @@ print('[Bernie] Starting Immersive-World module')
 
 local config = GLOBAL.LoadConfig("immersiveworld.lua")
 
+-- Priority stuff
+GLOBAL.ACTIONS.EAT.priority = GLOBAL.ACTIONS.FERTILIZE.priority + 1
+
 -- Aimable flares
 local FLARE_DESTINATION = AddAction("FLARE_DESTINATION", "Flare Destination", function(act)
     local doer = act.doer
@@ -86,10 +89,18 @@ for _, prefab in ipairs(sittable) do
 end
 
 if GLOBAL.TheNet:IsDedicated() then
-    -- Any tool is burnable
+    -- Make some annoying objects burnable
     AddPrefabPostInitAny(function(inst)
         if not GLOBAL.TheWorld.ismastersim then return end
         inst:DoTaskInTime(0, function()
+            local spamitems = { stinger = true }
+            -- Spam items
+            if spamitems[inst.prefab] then
+                if inst.components.burnable == nil then inst:AddComponent("burnable") end
+                if inst.components.propagator == nil then inst:AddComponent("propagator") end
+                inst:AddTag("canlight")
+            end
+            -- Tools
             if inst.components.finiteuses ~= nil then
                 if inst.components.fuel == nil then inst:AddComponent("fuel") end
                 inst.components.fuel.fueltype = GLOBAL.FUELTYPE.BURNABLE
@@ -108,22 +119,22 @@ if GLOBAL.TheNet:IsDedicated() then
     end)
 
     -- Anything rottable is a fertilizer
-    --AddPrefabPostInitAny(function(inst)
-    --    if inst.components.perishable ~= nil and inst.components.edible == nil then return end
-    --    inst:DoTaskInTime(0, function()
-    --        if inst.components.perishable ~= nil then
-    --            if inst.components.fertilizer == nil then inst:AddComponent("fertilizer") end
-    --            local perish = inst.components.perishable.perishtime or 0
-    --            if perish <= GLOBAL.TUNING.PERISH_FAST then
-    --                inst.components.fertilizer.fertilizervalue = 2
-    --            elseif perish <= GLOBAL.TUNING.PERISH_MED then
-    --                inst.components.fertilizer.fertilizervalue = 5
-    --            else
-    --                inst.components.fertilizer.fertilizervalue = 10
-    --             end
-    --        end
-    --    end)
-    --end)
+    AddPrefabPostInitAny(function(inst)
+        if inst.components.perishable ~= nil and inst.components.edible == nil then return end
+        inst:DoTaskInTime(0, function()
+            if inst.components.perishable ~= nil then
+                if inst.components.fertilizer == nil then inst:AddComponent("fertilizer") end
+                local perish = inst.components.perishable.perishtime or 0
+                if perish <= GLOBAL.TUNING.PERISH_FAST then
+                    inst.components.fertilizer.fertilizervalue = 2
+                elseif perish <= GLOBAL.TUNING.PERISH_MED then
+                    inst.components.fertilizer.fertilizervalue = 5
+                else
+                    inst.components.fertilizer.fertilizervalue = 10
+                end
+            end
+        end)
+    end)
 
     -- Gnome Stuff
     local function OnGnomeEscape(inst, owner)
@@ -135,7 +146,7 @@ if GLOBAL.TheNet:IsDedicated() then
             local realowner = inst.components.inventoryitem.owner
             if realowner == nil or realowner.components.inventory == nil then return end
             if realowner.SoundEmitter then realowner.SoundEmitter:PlaySound("yotb_2021/common/hitching_post/unhitching") end
-            if realowner.sg then realowner.sg:GoToState("slip") end
+            if realowner.sg and (realowner.components.rider == nil or not realowner.components.rider:IsRiding()) then realowner.sg:GoToState("slip") end
             realowner.components.inventory:DropItem(inst, true, true)
             if dice == 2 then
                 local x, y, z = realowner.Transform:GetWorldPosition()

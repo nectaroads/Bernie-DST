@@ -1,7 +1,13 @@
 print('[Bernie] Starting Nice-Chat module')
 
-Assets = { Asset("IMAGE", "images/profileflair_alert.tex"), Asset("ATLAS", "images/profileflair_alert.xml"), Asset("IMAGE", "images/profileflair_ashley.tex"), Asset("ATLAS", "images/profileflair_ashley.xml"), Asset("IMAGE", "images/profileflair_bernie.tex"), Asset("ATLAS", "images/profileflair_bernie.xml"), Asset("IMAGE", "images/profileflair_willow.tex"), Asset("ATLAS", "images/profileflair_willow.xml"), Asset("IMAGE", "images/profileflair_global.tex"), Asset("ATLAS", "images/profileflair_global.xml"), Asset("IMAGE", "images/profileflair_private.tex"), Asset("ATLAS", "images/profileflair_private.xml"), Asset("IMAGE", "images/profileflair_discord.tex"), Asset("ATLAS", "images/profileflair_discord.xml"), Asset("IMAGE", "images/profileflair_staffdiscord.tex"), Asset("ATLAS", "images/profileflair_staffdiscord.xml"), Asset("IMAGE", "images/profileflair_server.tex"), Asset("ATLAS", "images/profileflair_server.xml") }
+Assets = Assets or {}
 
+local flair_assets = { "alert", "ashley", "bernie", "willow", "global", "private", "discord", "staffdiscord", "server", }
+
+for _, name in ipairs(flair_assets) do
+    table.insert(Assets, Asset("IMAGE", "images/profileflair_" .. name .. ".tex"))
+    table.insert(Assets, Asset("ATLAS", "images/profileflair_" .. name .. ".xml"))
+end
 local flairProfiles = {
     ashley = { name = "Ashley", colour = { 0.173, 0.463, 0.604, 1 }, flair = "profileflair_ashley" },
     bernie = { name = "Bernie", colour = { 0.502, 0.349, 0.235, 1 }, flair = "profileflair_bernie" },

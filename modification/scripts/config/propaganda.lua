@@ -25,6 +25,15 @@ return {
         "Beefalos não perdem amizade quando golpeados por sobreviventes.",
         "TODOS os revives cortam uma fatia de sua vida, exceto Meat Effigy",
         "Você pode mirar Flares usando seu mapa, assim pode compartilhar localizações.",
-        "Você sabia? Chester pode comer cinzas e transformar em itens queimados previamente."
+        "Você sabia? Chester pode comer cinzas e transformar em itens queimados previamente.",
+        "Gnomos costumam fugir das mãos dos sobreviventes...",
+        "Compass é infinito, e ele revela a localização de todo mundo!",
+        "Slot de Trinket é para brinquedos especiais, como o Compass.",
+        "Você pode queimar ferramentas na fogueira, livre-se de porcarias da base.",
+        "Tudo o que estraga é adubo, sem exceção!",
+        "Wanda pode penetrar Armadura-Planar usando Pure Horror!",
+        "Alimente Chester com cinzas para recuperar itens queimados.",
+        "Aperte F1 e leia o Guia-Brasil-Together!",
+        "Wonkey não é fraco como de costume, vale a pena experimentar!"
     }
 }

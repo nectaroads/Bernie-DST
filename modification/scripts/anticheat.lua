@@ -18,14 +18,12 @@ if GLOBAL.TheNet:IsDedicated() then
     -- Some verification stuff...
     AddSimPostInit(function()
         AddPlayerPostInit(function(inst)
-            inst:ListenForEvent("ativar ou sei la", function(inst)
-                whitelisted[inst.userid] = false
-                inst:DoTaskInTime(30, function()
-                    if whitelisted[inst.userid] == false then
-                        local jsonEncoded = GLOBAL.json.encode({ key = "player_cheating", victim = inst.name or (inst.GetDisplayName and inst:GetDisplayName()), userid = inst.userid })
-                        GLOBAL.SendRequest(jsonEncoded)
-                    end
-                end)
+            whitelisted[inst.userid] = false
+            inst:DoTaskInTime(30, function()
+                if whitelisted[inst.userid] == false then
+                    local jsonEncoded = GLOBAL.json.encode({ key = "player_cheating", victim = inst.name or (inst.GetDisplayName and inst:GetDisplayName()), userid = inst.userid })
+                    GLOBAL.SendRequest(jsonEncoded)
+                end
             end)
         end)
     end)
@@ -129,8 +127,8 @@ else
             self.continuousdistancegain = 6
             self.zoomstep = 8
             self.distancetarget = lastdistance
-            self.mindist = 10
-            self.maxdist = 40
+            self.mindist = 15
+            self.maxdist = 50
             self.mindistpitch = 30
             self.maxdistpitch = 60
             self.paused = false
@@ -139,7 +137,7 @@ else
             self.cutscene = false
 
             if self.gamemode_defaultfn then self.gamemode_defaultfn(self) end
-            if self.target ~= nil then self:SetTarget(self.target) end
+            self:SetTarget(self.target)
         end
 
         self.Apply = function()
@@ -160,8 +158,8 @@ else
             self.headinggain = 20
             self.distancegain = 1
             self.zoomstep = 8
-            if self.mindist ~= 10 then self.mindist = 10 end
-            if self.maxdist ~= 40 then self.maxdist = 40 end
+            if self.mindist ~= 15 then self.mindist = 15 end
+            if self.maxdist ~= 50 then self.maxdist = 50 end
             if lastdistance > self.maxdist + self.extramaxdist then lastdistance = self.maxdist + self.extramaxdist end
             if lastdistance > self.maxdist * 2 then lastdistance = self.maxdist end
             self.distancetarget = lastdistance

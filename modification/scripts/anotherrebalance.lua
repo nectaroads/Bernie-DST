@@ -1,5 +1,85 @@
 print('[Bernie] Starting Another-Rebalance module')
 
+-- Trinket slot
+local Inv = require "widgets/inventorybar"
+
+local trinkets = { compass = true }
+
+Assets = Assets or {}
+table.insert(Assets, Asset("IMAGE", "images/trinket.tex"))
+table.insert(Assets, Asset("ATLAS", "images/trinket.xml"))
+
+GLOBAL.EQUIPSLOTS = { HANDS = "hands", HEAD = "head", BODY = "body", TRINKET = "trinket" }
+
+AddGlobalClassPostConstruct("widgets/inventorybar", "Inv", function()
+    local Inv_Refresh_base = Inv.Refresh or function() return "" end
+    local Inv_Rebuild_base = Inv.Rebuild or function() return "" end
+
+    function Inv:LoadExtraSlots(self)
+        self.bg:SetScale(1.35, 1, 1.25)
+        self.bgcover:SetScale(1.35, 1, 1.25)
+
+        if self.addextraslots == nil then
+            self.addextraslots = 1
+
+            self:AddEquipSlot(GLOBAL.EQUIPSLOTS.TRINKET, "images/trinket.xml", "trinket.tex")
+
+            if self.inspectcontrol then
+                local W = 68
+                local SEP = 12
+                local INTERSEP = 28
+                local inventory = self.owner.replica.inventory
+                local num_slots = inventory:GetNumSlots()
+                local num_equip = #self.equipslotinfo
+                local num_buttons = self.controller_build and 0 or 1
+                local num_slotintersep = math.ceil(num_slots / 5)
+                local num_equipintersep = num_buttons > 0 and 1 or 0
+                local total_w = (num_slots + num_equip + num_buttons) * W + (num_slots + num_equip + num_buttons - num_slotintersep - num_equipintersep - 1) * SEP + (num_slotintersep + num_equipintersep) * INTERSEP
+                self.inspectcontrol.icon:SetPosition(-4, 6)
+                self.inspectcontrol:SetPosition((total_w - W) * .5 + 3, -6, 0)
+            end
+        end
+    end
+
+    function Inv:Refresh()
+        Inv_Refresh_base(self)
+        Inv:LoadExtraSlots(self)
+    end
+
+    function Inv:Rebuild()
+        Inv_Rebuild_base(self)
+        Inv:LoadExtraSlots(self)
+    end
+end)
+
+AddPrefabPostInitAny(function(inst)
+    if trinkets[inst.prefab] then
+        inst:AddTag("trinket")
+        if not GLOBAL.TheWorld.ismastersim then return inst end
+        if inst.components.equippable == nil then inst:AddComponent("equippable") end
+        inst.components.equippable.equipslot = GLOBAL.EQUIPSLOTS.TRINKET
+    end
+end)
+
+-- Compass HUD
+AddClassPostConstruct("widgets/hudcompass", function(self)
+    local function CheckTrinketCompass()
+        if self.owner ~= nil and self.owner.replica.inventory ~= nil then
+            local item = self.owner.replica.inventory:GetEquippedItem(GLOBAL.EQUIPSLOTS.TRINKET)
+            if item ~= nil and (item:HasTag("compass") or item.prefab == "compass") then
+                self:OpenCompass()
+                return
+            end
+        end
+        self:CloseCompass()
+    end
+    self.inst:ListenForEvent("equip", CheckTrinketCompass, self.owner)
+    self.inst:ListenForEvent("unequip", CheckTrinketCompass, self.owner)
+    self.inst:ListenForEvent("refreshinventory", CheckTrinketCompass, self.owner)
+    self.inst:ListenForEvent("inventoryclosed", CheckTrinketCompass, self.owner)
+    self.inst:DoTaskInTime(0, CheckTrinketCompass)
+end)
+
 local wigfridcombos = {}
 
 local bosses = { spiderqueen = { name = "High Weaver", blacklist = { spider = true, spider_warrior = true, spider_water = true, spider_dropper = true, spider_healer = true, spider_spitter = true, spider_moon = true, spider_hider = true } }, alterguardian_phase1_lunarrift = { name = "Celestial Revenant", blacklist = {} }, alterguardian_phase4_lunarrift = { name = "Celestial Scion", blacklist = {} }, wagboss_robot = { name = "W.A.R.B.O.T", blacklist = {} }, mock_dragonfly = { name = "Wilting Dragonfly", blacklist = {} }, mothergoose = { name = "The Mother Goose", blacklist = {} }, moonmaw_dragonfly = { name = "Moonmaw Dragonfly", blacklist = {} }, hoodedwidow = { name = "The Hooded Widow", blacklist = {} }, eyeofterror = { name = "The Eye of Terror", blacklist = {} }, dragonfly = { name = "Mother Dragonfly", blacklist = {} }, moose = { name = "The Moose/Goose", blacklist = {} }, bearger = { name = "Dormant Bearger", blacklist = {} }, mutatedbearger = { name = "Armored Bearger", blacklist = {} }, enraged_klaus = { name = "Vengeful Klaus ⚠", blacklist = {} }, mutateddeerclops = { name = "Crystal Deerclops", blacklist = {} }, twinofterror2 = { name = "Hungry Spazmatism", blacklist = {} }, antlion = { name = "Desert Antlion", blacklist = {} }, toadstool_dark = { name = "Misery Toadstool ⚠", blacklist = {} }, enraged_dragonfly = { name = "Burning Dragonfly ⚠", blacklist = {} }, twinofterror1 = { name = "Seeker Retinazor", blacklist = {} }, stalker_atrium = { name = "Ancient Fuelweaver", blacklist = {} }, sharkboi = { name = "Defiant Frostjaw", blacklist = {} }, mutatedwarg = { name = "Possessed Warg", blacklist = {} }, shadow_knight = { name = "Shadow Knight", blacklist = {} }, shadow_bishop = { name = "Shadow Bishop", blacklist = {} }, beequeen = { name = "Royal Bee Queen", blacklist = { beeguard = true, bee = true, killerbee = true } }, crabking = { name = "Mighty Crab King", blacklist = {} }, deerclops = { name = "Chilling Deerclops", blacklist = {} }, daywalker = { name = "Nightmare Werepig", blacklist = {} }, minotaur = { name = "Ancient Guardian", blacklist = {} }, daywalker2 = { name = "Scrappy Werepig", blacklist = {} }, malbatross = { name = "Flying Malbatross", blacklist = {} }, shadow_rook = { name = "Shadow Rook", blacklist = {} }, klaus = { name = "Wicked Klaus", blacklist = {} }, toadstool = { name = "Grotto Toadstool", blacklist = {} }, alterguardian_phase3 = { name = "Celestial Champion", blacklist = {} } }
@@ -31,6 +111,46 @@ if GLOBAL.TheNet:IsDedicated() then
         end
     end
 
+    -- Wonkey stuff
+    local function IsValidMonkeyTarget(target)
+        return target ~= nil and target.prefab ~= "wonkey"
+    end
+
+    local function MakeMonkeyNeutralToWonkey(inst)
+        inst:DoTaskInTime(0, function()
+            if inst.components.combat ~= nil then
+                local old_retargetfn = inst.components.combat.targetfn
+                inst.components.combat:SetRetargetFunction(3, function(monkey)
+                    local target = old_retargetfn ~= nil and old_retargetfn(monkey) or nil
+                    if IsValidMonkeyTarget(target) then return target end
+                    return nil
+                end)
+            end
+        end)
+    end
+
+    AddPrefabPostInit("monkey", MakeMonkeyNeutralToWonkey)
+    AddPrefabPostInit("powder_monkey", MakeMonkeyNeutralToWonkey)
+
+    AddPrefabPostInit("cursed_monkey_token", function(inst)
+        inst:RemoveTag("nosteal")
+        if not GLOBAL.TheWorld.ismastersim then return end
+        inst:DoTaskInTime(0, function()
+            if inst.components.inventoryitem ~= nil then
+                inst.components.inventoryitem.canonlygoinpocket = false
+                inst.components.inventoryitem.keepondrown = false
+            end
+
+            if inst.components.curseditem ~= nil then
+                inst.components.curseditem.active = false
+                inst.components.curseditem.cursed_target = nil
+                inst.components.curseditem.target = nil
+                inst:RemoveTag("applied_curse")
+                inst:RemoveTag("cursed_inventory_item")
+            end
+        end)
+    end)
+
     -- Player stuff
     local function OnEntityRevive(inst, data)
         if not inst then return end
@@ -38,7 +158,7 @@ if GLOBAL.TheNet:IsDedicated() then
         local cause = data and (data.source or data.reviver or data.doer or data.cause or data.afflicter)
         if inst:HasTag("player") then
             -- max health debuff
-            if not (cause.prefab == "resurrectionstatue") then
+            if not (cause.prefab == "resurrectionstatue" or cause.prefab == "resurrectionstone") then
                 if inst.components.health ~= nil then
                     inst.components.health:DeltaPenalty(TUNING.HEART_HEALTH_PENALTY * 2)
                 end
@@ -64,6 +184,12 @@ if GLOBAL.TheNet:IsDedicated() then
         local inst = self.inst
 
         if inst then
+            -- if it's Willow's skill, burn
+            local willowskills = { willow_shadow_flame = true, flamethrower_fx = true }
+            if weapon and willowskills[weapon.prefab] and inst.components.burnable then
+                inst.components.burnable:Ignite(nil, attacker)
+            end
+
             -- If a boss is being attacked
             if inst:HasTag("epic") then
                 -- Alone players are stronger against bosses
@@ -75,7 +201,7 @@ if GLOBAL.TheNet:IsDedicated() then
                         if not bossdamagehistory[inst.GUID].size then bossdamagehistory[inst.GUID].size = 0 end
                         bossdamagehistory[inst.GUID].size = bossdamagehistory[inst.GUID].size + 1
                     end
-                    if bossdamagehistory[rider.GUID].size <= 1 then damage = damage * 1.3 end
+                    if bossdamagehistory[inst.GUID].size <= 1 then damage = damage * 1.3 end
                 end
 
                 if attacker and attacker:HasTag("player") then
@@ -223,6 +349,7 @@ if GLOBAL.TheNet:IsDedicated() then
             inst:ListenForEvent("equip", OnPlayerEquip)
             inst:ListenForEvent("respawnfromghost", OnEntityRevive)
             inst:ListenForEvent("respawnfromcorpse", OnEntityRevive)
+            if inst.components.maprevealable ~= nil then inst.components.maprevealable:AddRevealSource(inst, "compassbearer") end
         end)
     end)
 
@@ -342,87 +469,18 @@ if GLOBAL.TheNet:IsDedicated() then
         end)
     end)
 
-    -- Walrus can drop 2 tusks
-    AddPrefabPostInit("walrus", function()
-        GLOBAL.SetSharedLootTable('walrus', { { 'meat', 1.00 }, { 'blowdart_pipe', 0.6 }, { 'walrushat', 0.40 }, { 'walrus_tusk', 0.3 }, { 'walrus_tusk', 0.3 } })
-    end)
+    -- Change loottable
+    local changeloot = {
+        walrus = { { 'meat', 1.00 }, { 'blowdart_pipe', 0.6 }, { 'walrushat', 0.40 }, { 'walrus_tusk', 0.3 }, { 'walrus_tusk', 0.3 } },
+        pigman = { { 'meat', 1.00 }, { 'pigskin', 0.6 } }
+    }
 
-    -- Tuning
-    TUNING.WES_DAMAGE_MULT = 1
-    TUNING.WES_WORK_MULTIPLIER = 1
-    TUNING.BALLOON_DAMAGE = 20
-    TUNING.BALLOON_ATTACK_RANGE = 3
-    TUNING.WONKEY_WALK_SPEED_PENALTY = 0
-    TUNING.WONKEY_SPEED_BONUS = 1.5
-    TUNING.WONKEY_TIME_TO_RUN = 2
-    TUNING.WONKEY_RUN_HUNGER_RATE_MULT = 1.1
-    TUNING.SHADOW_PILLAR_DURATION = 12
-    TUNING.SHADOW_PILLAR_DURATION_BOSS = 6
-    TUNING.SHADOW_PILLAR_DURATION_PLAYER = 3
-
-    TUNING.BEEFALO_HUNGER_RATE = TUNING.BEEFALO_HUNGER_RATE * 0.8
-    TUNING.BEEFALO_DOMESTICATION_ATTACKED_BY_PLAYER_DOMESTICATION = 0
-    TUNING.BEEFALO_DOMESTICATION_ATTACKED_DOMESTICATION = 0
-    TUNING.BEEFALO_DOMESTICATION_LOSE_DOMESTICATION = 0
-    TUNING.BEEFALO_DOMESTICATION_ATTACKED_OBEDIENCE = 0
-    TUNING.BEEFALO_DOMESTICATION_GAIN_DOMESTICATION = TUNING.BEEFALO_DOMESTICATION_GAIN_DOMESTICATION * 1.2
-    TUNING.BEEFALO_DOMESTICATION_BRUSHED_DOMESTICATION = TUNING.BEEFALO_DOMESTICATION_BRUSHED_DOMESTICATION * 1.2
-
-    TUNING.OCEANTREE_STAGES_TO_SUPERTALL = 2
-
-    TUNING.GRUEDAMAGE = 999
-    TUNING.WALRUS_REGEN_PERIOD = TUNING.WALRUS_REGEN_PERIOD * 0.6
-    TUNING.CRAWLINGHORROR_HEALTH = 400
-    TUNING.CRAWLINGHORROR_DAMAGE = 40
-    TUNING.CRAWLINGHORROR_ATTACK_PERIOD = 2
-    TUNING.BEEGUARD_HEALTH = 140
-    TUNING.BEEGUARD_DASH_SPEED = 7
-    TUNING.BEEGUARD_SPEED = 4
-    TUNING.LAVAE_HEALTH = 140
-
-    TUNING.SHADOW_ROOK.HIT_RANGE = 2.5
-    TUNING.SHADOW_KNIGHT.ATTACK_RANGE_LONG = 3
-    TUNING.TOADSTOOL_HEALTH = 32500
-    TUNING.TOADSTOOL_MUSHROOMBOMB_RADIUS = 3
-    TUNING.TOADSTOOL_SPOREBOMB_HIT_RANGE = 3
-    TUNING.TOADSTOOL_SPORECLOUD_RADIUS = 4
-    TUNING.TOADSTOOL_SPORECLOUD_LIFETIME = 20
-    TUNING.TOADSTOOL_MUSHROOMSPROUT_CHOPS = 6
-    TUNING.TOADSTOOL_MUSHROOMSPROUT_CD = 40
-    TUNING.CRABKING_CLAW_ATTACKRANGE = 3.6
-    TUNING.CRABKING_CLAW_BOATDAMAGE = 20
-    TUNING.CRABKING_GEYSER_BOATDAMAGE = 5
-    TUNING.CRABKING_REGEN = 25
-    TUNING.DEERCLOPS_HEALTH = 8000
-    TUNING.DEERCLOPS_ATTACK_PERIOD = 3
-    TUNING.DRAGONFLY_ENRAGE_DURATION = 30
-    TUNING.DRAGONFLY_FIRE_DAMAGE = 200
-    TUNING.DRAGONFLY_ATTACK_RANGE = 5
-    TUNING.DRAGONFLY_SPEED = 4
-    TUNING.DRAGONFLY_FIRE_SPEED = 5
-    TUNING.DRAGONFLY_HIT_RANGE = 5
-    TUNING.DRAGONFLY_FIRE_HIT_RANGE = 5
-    TUNING.BEEQUEEN_DAMAGE = 200
-    TUNING.BEEQUEEN_SPEED = 3
-    TUNING.BEEQUEEN_ATTACK_PERIOD = 2
-    TUNING.BEEQUEEN_ATTACK_RANGE = 5
-    TUNING.BEEQUEEN_HIT_RANGE = 5
-    TUNING.BEEQUEEN_SPAWNGUARDS_CD = { 28, 26, 24, 22 }
-    TUNING.BEEQUEEN_FOCUSTARGET_CD = { 120, 60, 32, 24 }
-
-    TUNING.HEATROCK_NUMUSES = TUNING.HEATROCK_NUMUSES * 3
-    TUNING.HEAT_ROCK_CARRIED_BONUS_HEAT_FACTOR = 0.8
-    TUNING.EFFIGY_HEALTH_PENALTY = 0
-    TUNING.PIGGYBACK_SPEED_MULT = 1
-
-    TUNING.BUILD_DISTANCE = 0.8
-
-    TUNING.DAY_HEAT = 12
-    TUNING.NIGHT_COLD = -14
-    TUNING.SUMMER_RAIN_TEMP = -16
-    TUNING.MIN_ENTITY_TEMP = -32.5
-    TUNING.MAX_ENTITY_TEMP = 123.5
-    TUNING.NO_BOSS_TIME = 0
+    for prefab, loot in pairs(changeloot) do
+        AddPrefabPostInit(prefab, function(inst)
+            GLOBAL.SetSharedLootTable(prefab, loot)
+            if inst.components.lootdropper ~= nil then inst.components.lootdropper:SetChanceLootTable(prefab) end
+        end)
+    end
 else
 end
 
@@ -440,3 +498,93 @@ end
 
 -- New recipes
 env.AddRecipe2("piggyback", { GLOBAL.Ingredient("pigskin", 6), GLOBAL.Ingredient("silk", 6), GLOBAL.Ingredient("rope", 4) }, GLOBAL.TECH.SCIENCE_TWO)
+env.AddRecipe2("compass", { GLOBAL.Ingredient("goldnugget", 3), GLOBAL.Ingredient("marble", 1) }, GLOBAL.TECH.SCIENCE_TWO)
+
+-- Tuning
+TUNING.MONKEY_TOKEN_COUNTS.LEVEL_1 = 0
+TUNING.MONKEY_TOKEN_COUNTS.LEVEL_2 = 2
+TUNING.MONKEY_TOKEN_COUNTS.LEVEL_3 = 3
+TUNING.MONKEY_TOKEN_COUNTS.LEVEL_4 = 5
+TUNING.WES_DAMAGE_MULT = 1
+TUNING.WES_WORK_MULTIPLIER = 1
+TUNING.BALLOON_DAMAGE = 20
+TUNING.BALLOON_ATTACK_RANGE = 3
+TUNING.WONKEY_WALK_SPEED_PENALTY = 1.1
+TUNING.WONKEY_SPEED_BONUS = 2.5
+TUNING.WONKEY_TIME_TO_RUN = 2
+TUNING.WONKEY_RUN_HUNGER_RATE_MULT = 1.1
+TUNING.SHADOW_PILLAR_DURATION = 12
+TUNING.SHADOW_PILLAR_DURATION_BOSS = 6
+TUNING.SHADOW_PILLAR_DURATION_PLAYER = 3
+TUNING.WILLOW_EMBER_THROW = 1
+TUNING.WILLOW_EMBER_BURST = 3
+TUNING.WILLOW_EMBER_BALL = 2
+TUNING.WILLOW_EMBER_FRENZY = 2
+TUNING.WILLOW_EMBER_LUNAR = 4
+TUNING.WILLOW_EMBER_SHADOW = 4
+
+TUNING.BEEFALO_HUNGER_RATE = TUNING.BEEFALO_HUNGER_RATE * 0.8
+TUNING.BEEFALO_DOMESTICATION_ATTACKED_BY_PLAYER_DOMESTICATION = 0
+TUNING.BEEFALO_DOMESTICATION_ATTACKED_DOMESTICATION = 0
+TUNING.BEEFALO_DOMESTICATION_LOSE_DOMESTICATION = 0
+TUNING.BEEFALO_DOMESTICATION_ATTACKED_OBEDIENCE = 0
+TUNING.BEEFALO_DOMESTICATION_GAIN_DOMESTICATION = TUNING.BEEFALO_DOMESTICATION_GAIN_DOMESTICATION * 1.2
+TUNING.BEEFALO_DOMESTICATION_BRUSHED_DOMESTICATION = TUNING.BEEFALO_DOMESTICATION_BRUSHED_DOMESTICATION * 1.2
+
+TUNING.OCEANTREE_STAGES_TO_SUPERTALL = 2
+TUNING.MAX_FIRE_DAMAGE_PER_SECOND = 160
+
+TUNING.GRUEDAMAGE = 999
+TUNING.WALRUS_REGEN_PERIOD = TUNING.WALRUS_REGEN_PERIOD * 0.5
+TUNING.CRAWLINGHORROR_HEALTH = 400
+TUNING.CRAWLINGHORROR_DAMAGE = 40
+TUNING.CRAWLINGHORROR_ATTACK_PERIOD = 2
+TUNING.BEEGUARD_HEALTH = 140
+TUNING.BEEGUARD_DASH_SPEED = 7
+TUNING.BEEGUARD_SPEED = 4
+TUNING.LAVAE_HEALTH = 140
+
+TUNING.SHADOW_ROOK.HIT_RANGE = 2.5
+TUNING.SHADOW_KNIGHT.ATTACK_RANGE_LONG = 3
+TUNING.TOADSTOOL_HEALTH = 32500
+TUNING.TOADSTOOL_MUSHROOMBOMB_RADIUS = 3
+TUNING.TOADSTOOL_SPOREBOMB_HIT_RANGE = 3
+TUNING.TOADSTOOL_SPORECLOUD_RADIUS = 4
+TUNING.TOADSTOOL_SPORECLOUD_LIFETIME = 20
+TUNING.TOADSTOOL_MUSHROOMSPROUT_CHOPS = 6
+TUNING.TOADSTOOL_MUSHROOMSPROUT_CD = 40
+TUNING.CRABKING_CLAW_ATTACKRANGE = 3.6
+TUNING.CRABKING_CLAW_BOATDAMAGE = 20
+TUNING.CRABKING_GEYSER_BOATDAMAGE = 5
+TUNING.CRABKING_REGEN = 25
+TUNING.DEERCLOPS_HEALTH = 8000
+TUNING.DEERCLOPS_ATTACK_PERIOD = 3
+TUNING.DRAGONFLY_ENRAGE_DURATION = 30
+TUNING.DRAGONFLY_FIRE_DAMAGE = 200
+TUNING.DRAGONFLY_ATTACK_RANGE = 5
+TUNING.DRAGONFLY_SPEED = 4
+TUNING.DRAGONFLY_FIRE_SPEED = 5
+TUNING.DRAGONFLY_HIT_RANGE = 5
+TUNING.DRAGONFLY_FIRE_HIT_RANGE = 5
+TUNING.BEEQUEEN_DAMAGE = 200
+TUNING.BEEQUEEN_SPEED = 3
+TUNING.BEEQUEEN_ATTACK_PERIOD = 2
+TUNING.BEEQUEEN_ATTACK_RANGE = 5
+TUNING.BEEQUEEN_HIT_RANGE = 5
+TUNING.BEEQUEEN_SPAWNGUARDS_CD = { 28, 26, 24, 22 }
+TUNING.BEEQUEEN_FOCUSTARGET_CD = { 120, 60, 32, 24 }
+
+TUNING.HEATROCK_NUMUSES = TUNING.HEATROCK_NUMUSES * 3
+TUNING.HEAT_ROCK_CARRIED_BONUS_HEAT_FACTOR = 0.8
+TUNING.EFFIGY_HEALTH_PENALTY = 0
+TUNING.PIGGYBACK_SPEED_MULT = 1
+TUNING.COMPASS_FUEL = 3000
+
+TUNING.BUILD_DISTANCE = 0.6
+
+TUNING.DAY_HEAT = 12
+TUNING.NIGHT_COLD = -14
+TUNING.SUMMER_RAIN_TEMP = -16
+TUNING.MIN_ENTITY_TEMP = -32.5
+TUNING.MAX_ENTITY_TEMP = 123.5
+TUNING.NO_BOSS_TIME = 0
