@@ -5,16 +5,27 @@ local config = GLOBAL.LoadConfig("sadisticevents.lua")
 local lasteventday = -2
 local currentevent = ""
 
+local mindelay = 30
+local maxdelay = 90
+
 function RainEvent(inst, event)
-    GLOBAL.TheWorld:PushEvent("ms_forceprecipitation")
+    inst:DoTaskInTime(math.random(mindelay, maxdelay), function(inst)
+        if not inst then return end
+        GLOBAL.ExecuteOnAllShards({ key = "bernie_rpc_client_message", rpc = "bernie_rpc_client_message", type = "bernie", message = config and config[event.name].messageend })
+        GLOBAL.TheWorld:PushEvent("ms_forceprecipitation")
+    end)
 end
 
 function BlackoutEvent(inst, event)
-    GLOBAL.TheWorld:PushEvent("ms_setclocksegs", { day = 0, dusk = 0, night = 16, })
+    inst:DoTaskInTime(math.random(mindelay, maxdelay), function(inst)
+        if not inst then return end
+        GLOBAL.ExecuteOnAllShards({ key = "bernie_rpc_client_message", rpc = "bernie_rpc_client_message", type = "bernie", message = config and config[event.name].messageend })
+        GLOBAL.TheWorld:PushEvent("ms_setclocksegs", { day = 0, dusk = 0, night = 16, })
+    end)
 end
 
 function RaidEvent(inst, event, prefab, maxcreatures)
-    inst:DoTaskInTime(math.random(30, 90), function(inst)
+    inst:DoTaskInTime(math.random(mindelay, maxdelay), function(inst)
         local players = {}
         for _, player in ipairs(GLOBAL.AllPlayers) do
             if player ~= nil and player.components.health ~= nil and not player.components.health:IsDead()
@@ -25,7 +36,7 @@ function RaidEvent(inst, event, prefab, maxcreatures)
         if #players <= 0 then return end
         local target = players[math.random(#players)]
         local name = target:GetDisplayName() or target.name
-        GLOBAL.ExecuteOnAllShards({ key = "bernie_rpc_client_message", rpc = "bernie_rpc_client_message", type = "bernie", message = ((config and config[event.name].messagefind) or "???") .. name .. "!" }, true)
+        GLOBAL.ExecuteOnAllShards({ key = "bernie_rpc_client_message", rpc = "bernie_rpc_client_message", type = "bernie", message = ((config and config[event.name].messagefind) or "???") .. name .. "!" })
         local x, y, z = target.Transform:GetWorldPosition()
         local count = math.random(2, maxcreatures)
         for i = 1, count do
@@ -85,25 +96,29 @@ local function SpoilContainer(container, seen)
 end
 
 function WitchcraftEvent(inst, event)
-    local seen = {}
-    for _, player in ipairs(GLOBAL.AllPlayers) do
-        if player ~= nil and player:IsValid() then
-            if player.components.inventory ~= nil then
-                for slot, item in pairs(player.components.inventory.itemslots) do
-                    SpoilItem(item, seen)
+    inst:DoTaskInTime(math.random(mindelay, maxdelay), function(inst)
+        if not inst then return end
+        GLOBAL.ExecuteOnAllShards({ key = "bernie_rpc_client_message", rpc = "bernie_rpc_client_message", type = "bernie", message = config and config[event.name].messageend })
+        local seen = {}
+        for _, player in ipairs(GLOBAL.AllPlayers) do
+            if player ~= nil and player:IsValid() then
+                if player.components.inventory ~= nil then
+                    for slot, item in pairs(player.components.inventory.itemslots) do
+                        SpoilItem(item, seen)
+                    end
+                    for slot, equip in pairs(player.components.inventory.equipslots) do
+                        SpoilItem(equip, seen)
+                        if equip.components.container ~= nil then SpoilContainer(equip.components.container, seen) end
+                    end
                 end
-                for slot, equip in pairs(player.components.inventory.equipslots) do
-                    SpoilItem(equip, seen)
-                    if equip.components.container ~= nil then SpoilContainer(equip.components.container, seen) end
+                local x, y, z = player.Transform:GetWorldPosition()
+                local ents = GLOBAL.TheSim:FindEntities(x, y, z, 5, nil, { "INLIMBO", "NOCLICK" })
+                for _, ent in ipairs(ents) do
+                    if ent ~= nil and ent:IsValid() and ent.components.container ~= nil then SpoilContainer(ent.components.container, seen) end
                 end
-            end
-            local x, y, z = player.Transform:GetWorldPosition()
-            local ents = GLOBAL.TheSim:FindEntities(x, y, z, 5, nil, { "INLIMBO", "NOCLICK" })
-            for _, ent in ipairs(ents) do
-                if ent ~= nil and ent:IsValid() and ent.components.container ~= nil then SpoilContainer(ent.components.container, seen) end
             end
         end
-    end
+    end)
 end
 
 function CallSadisticEvent(inst, event)
@@ -113,7 +128,7 @@ function CallSadisticEvent(inst, event)
     end
     if event.currentloop == nil then event.currentloop = 0 end
     if event.currentloop == 0 and event.messagestart ~= nil then
-        GLOBAL.ExecuteOnAllShards(event.messagestart, true)
+        GLOBAL.ExecuteOnAllShards(event.messagestart)
         for _, player in ipairs(GLOBAL.AllPlayers) do
             if player ~= nil and player:IsValid() and player.SoundEmitter ~= nil then
                 player.SoundEmitter:PlaySound("dontstarve/quagmire/creature/gnaw/rumble")
@@ -124,7 +139,7 @@ function CallSadisticEvent(inst, event)
     event.func(inst, event)
     if event.currentloop >= event.loop then
         if event.messageend then
-            GLOBAL.ExecuteOnAllShards(event.messageend, true)
+            GLOBAL.ExecuteOnAllShards(event.messageend)
             for _, player in ipairs(GLOBAL.AllPlayers) do
                 if player ~= nil and player:IsValid() and player.SoundEmitter ~= nil then
                     player.SoundEmitter:PlaySound("dontstarve/quagmire/music/gorge_win")
@@ -195,7 +210,7 @@ local sadisticevents = {
 }
 
 local function RollSadisticEvent(inst)
-    if math.random() > 0.1 then return end
+    if math.random() > 0.2 then return end
     local keys = {}
     for k, v in pairs(sadisticevents) do
         if v.name ~= currentevent then table.insert(keys, k) end
@@ -203,7 +218,13 @@ local function RollSadisticEvent(inst)
     if #keys <= 0 then return end
     local randomkey = keys[math.random(#keys)]
     local event = sadisticevents[randomkey]
-    if event ~= nil then CallSadisticEvent(inst, event) end
+    if event ~= nil then
+        if GLOBAL.TheWorld:HasTag("cave") then
+            GLOBAL.TheWorld:PushEvent("ms_forceprecipitation")
+        else
+            CallSadisticEvent(inst, event)
+        end
+    end
 end
 
 GLOBAL.TriggerSadisticEvent = function(ev)

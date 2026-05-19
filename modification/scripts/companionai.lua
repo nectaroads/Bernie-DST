@@ -1,280 +1,597 @@
-print('[Bernie] Starting Companion-AI module')
+-- So, I need to think how the AI will work...
+-- The behavior will follow something like this: Directive > Task > Action
 
 local config = GLOBAL.LoadConfig("companionai.lua")
 
-GLOBAL.companion = nil
-local companionleader = nil
-local companionobjective = nil
-local lastcompanionobjective = nil
-local companiontarget = nil
+-- Class itself
+GLOBAL.companion = {
+    entity = nil,
+    target = nil,
+    leader = nil,
+    explorepos = nil,
+    directive = "independent",
+    task = "explore",
+    action = nil,
+    actionindex = 1,
+    portal = nil,
+    lastscan = {
+        interests = {},
+        location = nil
+    }
+}
 
-local reacttime = 1.4
-local available = true
+local companion = GLOBAL.companion
 
-local lastposition = { x = 0, y = 0, z = 0 }
-local lastlocation = {}
-local lastents = {}
+-- CONSTS
+local SCAN_RADIUS = 24
+local RESCAN_DISTANCE = 24
+local MAX_USED_INVENTORY_SLOTS = 10
+local EXPLORE_MIN_DISTANCE = 18
+local EXPLORE_MAX_DISTANCE = 36
+local EXPLORE_TRIES = 20
 
-local base = nil
-local portal = nil
+-- Workable prefabs
+local FORAGE_PREFABS = { grass = true, sapling = true, berrybush = true, berrybush2 = true, carrot_planted = true, red_mushroom = true, green_mushroom = true, blue_mushroom = true }
+local MINE_PREFABS = { rock1 = true, rock2 = true, rock_flintless = true, rock_moon = true, stalagmite = true, stalagmite_tall = true, rock_ice = true }
+local CHOP_PREFABS = { evergreen = true, evergreen_sparse = true, deciduoustree = true, twiggytree = true, moon_tree = true }
+local DIG_PREFABS = { gravestone = true, mound = true, evergreen_stump = true, evergreen_sparse_stump = true, deciduoustree_stump = true, twiggytree_stump = true, moon_tree_stump = true }
 
-local unlock_prefabs = { berrybush = "gather", berrybush2 = "gather", sapling = "gather", grass = "gather", reeds = "gather" }
---local unlock_prefabs = { treasurechest = "organize", cookpot = "cook", evergreen_stump = "dig", mound = "dig", gravestone = "dig", deciduoustree_stump = "dig", evergreen_tall = "chop", evergreen_sparse_tall = "chop", livingtree = "chop", berrybush = "gather", berrybush2 = "gather", sapling = "gather", grass = "gather", reeds = "gather", rock1 = "mine", rock2 = "mine", rock_flintless = "mine", rock_moon = "mine", rock_ice = "mine" }
+local function IsForageable(ent)
+    return ent ~= nil and ent:IsValid() and FORAGE_PREFABS[ent.prefab] and ent.components.pickable ~= nil and ent.components.pickable:CanBePicked()
+end
 
-local ExecuteObjective = {}
+local function IsMineable(ent)
+    return ent ~= nil and ent:IsValid() and MINE_PREFABS[ent.prefab] and ent.components.workable ~= nil and ent.components.workable:CanBeWorked() and ent.components.workable.action == GLOBAL.ACTIONS.MINE
+end
+
+local function IsChoppable(ent)
+    return ent ~= nil and ent:IsValid() and CHOP_PREFABS[ent.prefab] and ent.components.workable ~= nil and ent.components.workable:CanBeWorked() and ent.components.workable.action == GLOBAL.ACTIONS.CHOP
+end
+
+local function IsDiggable(ent)
+    return ent ~= nil and ent:IsValid() and DIG_PREFABS[ent.prefab] and ent.components.workable ~= nil and ent.components.workable:CanBeWorked() and ent.components.workable.action == GLOBAL.ACTIONS.DIG
+end
+
+local directives = {
+    independent = {
+        explore = true,
+        forage = true,
+        mine = true,
+        chop = true,
+        dig = true,
+    }
+}
+
+local tasks = {
+    explore = {
+        distance = 3,
+        weight = 3,
+        actions = {
+            "find_explore_position",
+            "go_to_explore_position",
+            "inspect_nearby",
+        }
+    },
+    forage = {
+        filters = IsForageable,
+        distance = 3,
+        weight = 2,
+        actions = {
+            "find_target",
+            "go_to_target",
+            "collect_target",
+        }
+    },
+    mine = {
+        filters = IsMineable,
+        distance = 3,
+        weight = 1,
+        actions = {
+            "find_target",
+            "go_to_target",
+            "mine_target",
+            "collect_nearby",
+        }
+    },
+    chop = {
+        filters = IsChoppable,
+        distance = 3,
+        weight = 1,
+        actions = {
+            "find_target",
+            "go_to_target",
+            "chop_target",
+            "find_dig_target_nearby",
+            "go_to_target",
+            "dig_target",
+            "collect_nearby",
+        }
+    },
+    dig = {
+        filters = IsDiggable,
+        distance = 3,
+        weight = 1,
+        actions = {
+            "find_target",
+            "go_to_target",
+            "dig_target",
+            "collect_nearby",
+        }
+    }
+}
+
+local function FindExplorePosition()
+    print("[Willow] Finding explore position...")
+    local inst = companion.entity
+    if not inst or not inst:IsValid() then return false end
+    local map = GLOBAL.TheWorld.Map
+    local x, y, z = inst.Transform:GetWorldPosition()
+    for i = 1, EXPLORE_TRIES do
+        local angle = math.random() * 2 * GLOBAL.PI
+        local distance = EXPLORE_MIN_DISTANCE + math.random() * (EXPLORE_MAX_DISTANCE - EXPLORE_MIN_DISTANCE)
+        local px = x + math.cos(angle) * distance
+        local pz = z + math.sin(angle) * distance
+        if map:IsPassableAtPoint(px, 0, pz) and not map:IsGroundTargetBlocked(GLOBAL.Vector3(px, 0, pz)) then
+            companion.explorepos = GLOBAL.Vector3(px, 0, pz)
+            return true
+        end
+    end
+    companion.explorepos = nil
+    return false
+end
+
+local function GoToExplorePosition(distance)
+    print("[Willow] Going to explore position...")
+    local inst = companion.entity
+    local pos = companion.explorepos
+    if not inst or not inst:IsValid() then return false end
+    if pos == nil then return false end
+    if inst.components.locomotor == nil then return false end
+    if inst:GetDistanceSqToPoint(pos.x, pos.y, pos.z) <= (distance or 3) * (distance or 3) then return true end
+    inst.components.locomotor:GoToPoint(pos)
+    return false
+end
+
+local function GetEquippedSlots()
+    local inst = companion.entity
+    local result = {}
+    if not inst or not inst:IsValid() or inst.components.inventory == nil then return result end
+    for slotname, slotid in pairs(GLOBAL.EQUIPSLOTS) do
+        result[slotname] = inst.components.inventory:GetEquippedItem(slotid)
+    end
+    return result
+end
 
 local function HasInventorySpace()
-    local inv = GLOBAL.companion.components.inventory
-    local usedslots = 0
-    local hasspace = true
-    for k, v in pairs(inv.itemslots) do
-        if v ~= nil then usedslots = usedslots + 1 end
+    local inst = companion.entity
+    if not inst or not inst:IsValid() or inst.components.inventory == nil then return false end
+    local inv = inst.components.inventory
+    local used = 0
+    local maxslots = inv:GetNumSlots()
+    for slot = 1, maxslots do
+        if inv.itemslots[slot] ~= nil then used = used + 1 end
     end
-    if usedslots >= 10 then hasspace = false end
-    print('[Willow] Inventory: Has space? ' .. tostring(hasspace))
-    return hasspace
+    return used < MAX_USED_INVENTORY_SLOTS
 end
 
-local function StopWork()
-    if companionleader then
-        ExecuteObjective["follow"]()
-    else
-        ExecuteObjective["explore"]()
+local function TryEquipMissingSlots()
+    local inst = companion.entity
+    if not inst or not inst:IsValid() or inst.components.inventory == nil then return end
+    local inv = inst.components.inventory
+    for slotname, slotid in pairs(GLOBAL.EQUIPSLOTS) do
+        local equipped = inv:GetEquippedItem(slotid)
+        if equipped == nil then
+            for _, item in pairs(inv.itemslots) do
+                if item ~= nil and item.components.equippable ~= nil and item.components.equippable.equipslot == slotid then
+                    inv:Equip(item)
+                    break
+                end
+            end
+        end
     end
 end
 
-local function CheckObjective(objective)
-    if companionobjective == objective then return true end
+local function GetCompanionPosition()
+    if not companion.entity or not companion.entity:IsValid() then return nil end
+    return companion.entity:GetPosition()
+end
+
+local function ShouldRescan()
+    local pos = GetCompanionPosition()
+    if pos == nil then return false end
+    if companion.lastscan.location == nil then return true end
+    return pos:DistSq(companion.lastscan.location) >= RESCAN_DISTANCE * RESCAN_DISTANCE
+end
+
+local function ScanNearby()
+    local inst = companion.entity
+    if not inst or not inst:IsValid() then return {} end
+    local pos = inst:GetPosition()
+    companion.lastscan.location = pos
+    companion.lastscan.interests = GLOBAL.TheSim:FindEntities(pos.x, pos.y, pos.z, SCAN_RADIUS, nil, { "INLIMBO", "NOCLICK", "FX" })
+    return companion.lastscan.interests
+end
+
+local function FindDigTargetNearby()
+    ScanNearby()
+    local interests = companion.lastscan.interests
+    local inst = companion.entity
+    local best = nil
+    local bestdist = nil
+    for i = #interests, 1, -1 do
+        local ent = interests[i]
+        if ent == nil or not ent:IsValid() then
+            table.remove(interests, i)
+        elseif IsDiggable(ent) then
+            local dist = inst:GetDistanceSqToInst(ent)
+            if best == nil or dist < bestdist then
+                best = ent
+                bestdist = dist
+            end
+        end
+    end
+    companion.target = best
+    return best
+end
+
+local function FindInterest(filterfn)
+    print("[Willow] Finding interest...")
+    local interests = companion.lastscan.interests
+    if ShouldRescan() then interests = ScanNearby() end
+    for i = #interests, 1, -1 do
+        local ent = interests[i]
+        if ent == nil or not ent:IsValid() then
+            table.remove(interests, i)
+        elseif filterfn(ent) then
+            companion.target = ent
+            return ent
+        end
+    end
+    interests = ScanNearby()
+    for i = #interests, 1, -1 do
+        local ent = interests[i]
+        if ent == nil or not ent:IsValid() then
+            table.remove(interests, i)
+        elseif filterfn(ent) then
+            companion.target = ent
+            return ent
+        end
+    end
+    companion.target = nil
     return nil
 end
 
-local function RevealMapArea(x, z)
-    print('[Willow] Finding: Revealing map...')
-    for _, player in ipairs(GLOBAL.AllPlayers) do
-        if player and player:IsValid() and player.player_classified and player.player_classified.MapExplorer then
-            player.player_classified.MapExplorer:RevealArea(x, 0, z)
+local function GoToTarget(distance)
+    print("[Willow] Going to target...")
+    local inst = companion.entity
+    local target = companion.target
+    if not inst or not inst:IsValid() then return false end
+    if not target or not target:IsValid() then return false end
+    if inst.components.locomotor == nil then return false end
+    if inst:GetDistanceSqToInst(target) <= (distance or 2) * (distance or 2) then return true end
+    inst.components.locomotor:GoToPoint(target:GetPosition())
+    return false
+end
+
+local function DoBufferedAction(action, target, cleartarget)
+    local inst = companion.entity
+    if companion.actionbusy then return true end
+    if not inst or not inst:IsValid() then return false end
+    if not target or not target:IsValid() then return false end
+    if inst.components.locomotor == nil then return false end
+    companion.actionbusy = true
+    local ba = GLOBAL.BufferedAction(inst, target, action)
+    ba:AddSuccessAction(function()
+        companion.actionbusy = false
+        if cleartarget then companion.target = nil end
+    end)
+    ba:AddFailAction(function() companion.actionbusy = false end)
+    inst.components.locomotor:PushAction(ba, true)
+    return true
+end
+
+local function PickTarget()
+    print("[Willow] Picking target...")
+    local target = companion.target
+    if not IsForageable(target) then
+        companion.target = nil
+        return false
+    end
+    return DoBufferedAction(GLOBAL.ACTIONS.PICK, target, true)
+end
+
+local function MineTarget()
+    print("[Willow] Mining target...")
+    local target = companion.target
+    if target == nil or not target:IsValid() then
+        companion.target = nil
+        return "done"
+    end
+    if not IsMineable(target) then
+        companion.target = nil
+        return "done"
+    end
+    DoBufferedAction(GLOBAL.ACTIONS.MINE, target, false)
+    return "running"
+end
+
+local function ChopTarget()
+    print("[Willow] Chopping target...")
+    local target = companion.target
+    if target == nil or not target:IsValid() then
+        companion.target = nil
+        return "done"
+    end
+    if not IsChoppable(target) then
+        companion.target = nil
+        return "done"
+    end
+    DoBufferedAction(GLOBAL.ACTIONS.CHOP, target, false)
+    return "running"
+end
+
+local function DigTarget()
+    print("[Willow] Digging target...")
+    local target = companion.target
+    if target == nil or not target:IsValid() then
+        companion.target = nil
+        return "done"
+    end
+    if not IsDiggable(target) then
+        companion.target = nil
+        return "done"
+    end
+    DoBufferedAction(GLOBAL.ACTIONS.DIG, target, false)
+    return "running"
+end
+
+local function IsCollectable(ent)
+    return ent ~= nil and ent:IsValid() and ent.components.inventoryitem ~= nil and ent.components.inventoryitem.canbepickedup and not ent:IsInLimbo() and not ent:HasTag("INLIMBO") and not ent:HasTag("NOCLICK") and ent.entity:IsVisible()
+end
+
+local function FindNearbyCollectable()
+    local interests = companion.lastscan.interests
+    if ShouldRescan() then interests = ScanNearby() end
+    local inst = companion.entity
+    local best = nil
+    local bestdist = nil
+    for i = #interests, 1, -1 do
+        local ent = interests[i]
+        if ent == nil or not ent:IsValid() then
+            table.remove(interests, i)
+        elseif IsCollectable(ent) then
+            local dist = inst:GetDistanceSqToInst(ent)
+            if best == nil or dist < bestdist then
+                best = ent
+                bestdist = dist
+            end
         end
     end
+    return best
 end
 
-local function MoveCompanion(x, y, z)
-    if not GLOBAL.TheWorld.Map:IsPassableAtPoint(x, y, z) then return false end
-    GLOBAL.companion.components.locomotor:GoToPoint(GLOBAL.Vector3(x, y, z))
+local function CollectNearby()
+    print("[Willow] Collecting nearby...")
+    if not HasInventorySpace() then
+        companion.target = nil
+        return "done"
+    end
+    if companion.actionbusy then return "running" end
+    if companion.target ~= nil and companion.target:IsValid() and IsCollectable(companion.target) then
+        DoBufferedAction(GLOBAL.ACTIONS.PICKUP, companion.target, true)
+        return "running"
+    end
+    ScanNearby()
+    local item = FindNearbyCollectable()
+    if item == nil then
+        companion.target = nil
+        return "done"
+    end
+    companion.target = item
+    DoBufferedAction(GLOBAL.ACTIONS.PICKUP, item, true)
+    return "running"
 end
 
-local function TeleportCompanion(position, leap)
-    print('[Willow] Moving: Teleporting')
-    GLOBAL.companion.Transform:SetPosition(position.x, position.y, position.z)
-    GLOBAL.companion.AnimState:PlayAnimation("wakeup", false)
+local function SetTask(taskname)
+    if taskname == nil then return end
+    TryEquipMissingSlots()
+    companion.task = taskname
+    companion.action = nil
+    companion.actionindex = 1
+    companion.target = nil
+end
+
+local function TeleportCompanion(position)
+    companion.entity.Transform:SetPosition(position.x, position.y, position.z)
+    companion.entity.AnimState:PlayAnimation("wakeup", false)
     local fx = GLOBAL.SpawnPrefab("woby_dash_shadow_fx")
     if fx then fx.Transform:SetPosition(position.x, position.y, position.z) end
-    -- checkpoint: add sound?
 end
 
-local function InvestigateLocation(radius)
-    print('[Willow] Finding: Something...')
-    local base_findings = { research_found = false, research = { bookstation = true, researchlab1 = true, researchlab2 = true, researchlab3 = true }, fire_found = false, fire = { firepit = true } }
-    local cx, cy, cz = GLOBAL.companion.Transform:GetWorldPosition()
-    local ents = GLOBAL.TheSim:FindEntities(cx, cy, cz, radius, nil, { "INLIMBO" })
-    for _, ent in ipairs(ents) do
-        if base_findings.research[ent.prefab] then base_findings.research_found = true end
-        if base_findings.fire[ent.prefab] then base_findings.fire_found = true end
-    end
-    if base_findings.research_found == true and base_findings.fire_found == true then base = { cx, cy, cz } end
-    RevealMapArea(cx, cz)
-    local location = { x = cx, y = cy, z = cz }
-    lastlocation = location
-    lastents = ents
-end
-
-local function FindObjective()
-    print('[Willow] Finding: Work')
-    local hastool = true
-    local item = GLOBAL.companion.components.inventory:GetEquippedItem(GLOBAL.EQUIPSLOTS.HANDS)
-    if not item then
-        hastool = false
-        local inventory = GLOBAL.companion.components.inventory
-        if inventory then
-            for k, v in pairs(inventory.itemslots) do
-                if v and v.components and v.components.equippable and v.components.equippable.equipslot == GLOBAL.EQUIPSLOTS.HANDS then
-                    inventory:Equip(v)
-                    hastool = true
-                    break
-                end
-            end
-        end
-    end
-
-    GLOBAL.companion:DoTaskInTime(reacttime, function()
-        if not GLOBAL.companion or not GLOBAL.companion:IsValid() then return end
-        InvestigateLocation(20)
-        local work_allowed = { explore = true, slackoff = true }
-        for _, ent in ipairs(lastents) do
-            if unlock_prefabs[ent.prefab] then work_allowed[unlock_prefabs[ent.prefab]] = true end
-        end
-        if hastool == false then
-            work_allowed.mine = false
-            work_allowed.chop = false
-            work_allowed.dig = false
-        end
-        if not HasInventorySpace() then
-            work_allowed.gather = false
-            work_allowed.mine = false
-            work_allowed.chop = false
-            work_allowed.dig = false
-        end
-        local pool = {}
-        for work, allowed in pairs(work_allowed) do
-            if allowed == true then table.insert(pool, work) end
-        end
-        local current_work = nil
-        if #pool > 0 then current_work = pool[math.random(#pool)] end
-        print('[Willow] Found: ' .. current_work)
-        if ExecuteObjective[current_work] then ExecuteObjective[current_work]() else ExecuteObjective["explore"]() end
-    end)
-end
-
-ExecuteObjective.gather = function()
-    if CheckObjective("gather") then return end
-    print('[Willow] Work: Gather')
-    companionobjective = "gather"
-    local loop = 0
-    local function DoGather(target)
-        if not CheckObjective("gather") then return end
-        if not target or not target:IsValid() or not target.components.pickable or not target.components.pickable:CanBePicked() then
-            if loop % 2 == 0 then
-                if not HasInventorySpace then StopWork() end
-            end
-            if not lastents or #lastents <= 0 then InvestigateLocation(10) end
-            local allowedprefabs = {}
-            for prefab, work in pairs(unlock_prefabs) do
-                if work == "gather" then allowedprefabs[prefab] = true end
-            end
-            for _, ent in ipairs(lastents) do
-                if allowedprefabs[ent.prefab] then
-                    target = ent
-                    break
-                end
-            end
-        end
-        if not target or not target:IsValid() then
-            StopWork()
-            return
-        end
-        local action = GLOBAL.BufferedAction(GLOBAL.companion, target, GLOBAL.ACTIONS.PICK)
-        if action:IsValid() then GLOBAL.companion.components.locomotor:PushAction(action, true) end
-        loop = loop + 1
-        if loop < 10 then
-            DoGather(target)
-            return
-        end
-        if companionleader and companionleader:IsValid() then
-            StopWork()
-            return
-        end
-        local dice = math.random(0, 1)
-        if dice == 0 then
-            StopWork()
-            return
-        end
-        DoGather(target)
-    end
-    DoGather()
-end
-
-ExecuteObjective.follow = function()
-
-end
-
-ExecuteObjective.explore = function()
-    if CheckObjective("explore") then return end
-    print('[Willow] Work: Explore')
-    companionobjective = "explore"
-    local loop = 0
-    local anchorx = math.random(-1000, 1000)
-    local anchorz = math.random(-1000, 1000)
-    local function IsNearAnchor(cx, cz)
-        local dx = cx - anchorx
-        local dz = cz - anchorz
-        return (dx * dx + dz * dz) <= (30 * 30)
-    end
-    local function DoExplore()
-        if not CheckObjective("explore") then return end
-        if loop % 10 == 0 then
-            local dice = math.random(0, 1)
-            if dice == 0 then FindObjective() end
-        end
-        local cx, cy, cz = GLOBAL.companion.Transform:GetWorldPosition()
-        if lastposition.x == cx and lastposition.z == cz then
-            anchorx = math.random(-1000, 1000)
-            anchorz = math.random(-1000, 1000)
-        end
-        if IsNearAnchor(cx, cz) then
-            anchorx = math.random(-1000, 1000)
-            anchorz = math.random(-1000, 1000)
-        end
-        local movex = math.random(-4, 4)
-        local movez = math.random(-4, 4)
-        if anchorx > 0 then movex = movex + 2 else movex = movex - 2 end
-        if anchorz > 0 then movez = movez + 2 else movez = movez - 2 end
-        MoveCompanion(cx + movex, cy, cz + movez)
-        GLOBAL.companion:DoTaskInTime(1, function()
-            loop = loop + 1
-            DoExplore()
-        end)
-    end
-
-    DoExplore()
-end
-
-ExecuteObjective.flee = function()
-
-end
-
-local tryspawn = false
-
-local function SpawnCompanion()
-    if GLOBAL.companion then return end
-    if not GLOBAL.TheWorld then return end
-    if not portal or not portal:IsValid() then
+local function EstablishPortal()
+    if not companion.portal or not companion.portal:IsValid() then
         for _, ent in pairs(GLOBAL.Ents) do
-            if ent.prefab == "multiplayer_portal" or ent.prefab == "multiplayer_portal_moonrock" then portal = ent end
+            if ent.prefab == "multiplayer_portal" or ent.prefab == "multiplayer_portal_moonrock" then
+                companion.portal = ent
+                return true
+            end
         end
     end
-    if not portal then
-        tryspawn = false
+    return nil
+end
+
+local function FindInspectable()
+    local interests = companion.lastscan.interests
+    if ShouldRescan() then interests = ScanNearby() end
+    local inst = companion.entity
+    local best = nil
+    local bestdist = nil
+    for i = #interests, 1, -1 do
+        local ent = interests[i]
+        if ent == nil or not ent:IsValid() then
+            table.remove(interests, i)
+        elseif not ent:HasTag("FX")
+            and not ent:HasTag("NOCLICK")
+            and ent.entity:IsVisible() then
+            local dist = inst:GetDistanceSqToInst(ent)
+            if best == nil or dist < bestdist then
+                best = ent
+                bestdist = dist
+            end
+        end
+    end
+    return best
+end
+
+local actions = {
+    find_target = function(taskdata)
+        return FindInterest(taskdata.filters) ~= nil and "done" or "failed"
+    end,
+
+    go_to_target = function(taskdata)
+        return GoToTarget(taskdata.distance or 2) and "done" or "running"
+    end,
+
+    collect_target = function(taskdata)
+        return PickTarget() and "done" or "failed"
+    end,
+
+    mine_target = function(taskdata)
+        return MineTarget()
+    end,
+
+    chop_target = function(taskdata)
+        return ChopTarget()
+    end,
+
+    find_dig_target_nearby = function(taskdata)
+        return FindDigTargetNearby() ~= nil and "done" or "done"
+    end,
+
+    dig_target = function(taskdata)
+        return DigTarget()
+    end,
+
+    collect_nearby = function(taskdata)
+        return CollectNearby()
+    end,
+
+    find_explore_position = function(taskdata)
+        return FindExplorePosition() and "done" or "failed"
+    end,
+
+    go_to_explore_position = function(taskdata)
+        return GoToExplorePosition(taskdata.distance or 3) and "done" or "running"
+    end,
+
+    inspect_nearby = function(taskdata)
+        print("[Willow] Inspecting nearby...")
+        local inst = companion.entity
+        if not inst or not inst:IsValid() then return "failed" end
+        local target = FindInspectable()
+        if target ~= nil then
+            inst:FacePoint(target.Transform:GetWorldPosition())
+            companion.memory = companion.memory or {}
+            companion.memory.lastinspect = target
+        end
+        companion.explorepos = nil
+        return "done"
+    end,
+}
+
+local function ChooseAllowedTask()
+    local allowed = directives[companion.directive]
+    if allowed == nil then return nil end
+    local pool = {}
+    local totalweight = 0
+    for taskname, enabled in pairs(allowed) do
+        local taskdata = tasks[taskname]
+        if enabled and taskdata ~= nil then
+            local weight = taskdata.weight or 1
+            if weight > 0 then
+                totalweight = totalweight + weight
+                table.insert(pool, { name = taskname, weight = weight, })
+            end
+        end
+    end
+    if totalweight <= 0 then return nil end
+    local roll = math.random() * totalweight
+    local acc = 0
+    for _, entry in ipairs(pool) do
+        acc = acc + entry.weight
+        if roll <= acc then return entry.name end
+    end
+    return pool[#pool].name
+end
+
+local function UpdateCompanion()
+    local inst = companion.entity
+    if not inst or not inst:IsValid() then return end
+    local allowed = directives[companion.directive]
+    if allowed == nil then return end
+    if companion.task == nil or not allowed[companion.task] or tasks[companion.task] == nil then SetTask(ChooseAllowedTask()) end
+    local taskdata = tasks[companion.task]
+    if taskdata == nil then return end
+    local actionname = taskdata.actions[companion.actionindex]
+    if actionname == nil then
+        SetTask(ChooseAllowedTask())
         return
     end
-    print('[Willow] Spawning...')
-    GLOBAL.companion = GLOBAL.SpawnPrefab((config and config.prefab) or "willow")
-    if not GLOBAL.companion then return end
+    companion.action = actionname
+    local actionfn = actions[actionname]
+    if actionfn == nil then
+        companion.actionindex = companion.actionindex + 1
+        return
+    end
+    local result = actionfn(taskdata)
+    if result == "done" then
+        companion.actionindex = companion.actionindex + 1
+    elseif result == "failed" then
+        SetTask(ChooseAllowedTask())
+    elseif result == "running" then
+        return
+    end
+end
+
+local function SpawnCompanion()
+    if not GLOBAL.TheWorld then return end
+    if not EstablishPortal() then return end
+
+    companion.entity = GLOBAL.SpawnPrefab((config and config.prefab) or "wilson")
+    if not companion.entity then return end
+
+    if companion.entity.components.health then companion.entity.components.health:SetInvincible(true) end
+    if companion.entity.components.combat == nil then companion.entity:AddComponent("combat") end
+    companion.entity.components.combat:SetDefaultDamage(34)
+    companion.entity.components.combat:SetAttackPeriod(0.6)
+    companion.entity.components.combat:SetRange(2)
+
+    if companion.entity.components.inventory == nil then companion.entity:AddComponent("inventory") end
+
+    if companion.entity.Physics then companion.entity.Physics:SetActive(true) end
+    if companion.entity.entity then companion.entity.entity:SetCanSleep(false) end
     --GLOBAL.companion.persists = true
-    if GLOBAL.companion.components.health then GLOBAL.companion.components.health:SetInvincible(true) end
-    if GLOBAL.companion.components.combat == nil then GLOBAL.companion:AddComponent("combat") end
-    GLOBAL.companion.components.combat:SetDefaultDamage(34)
-    GLOBAL.companion.components.combat:SetAttackPeriod(0.8)
-    GLOBAL.companion.components.combat:SetRange(2)
-    if GLOBAL.companion.components.inventory == nil then GLOBAL.companion:AddComponent("inventory") end
-    if GLOBAL.companion.Physics then GLOBAL.companion.Physics:SetActive(true) end
-    if GLOBAL.companion.entity then GLOBAL.companion.entity:SetCanSleep(false) end
-    GLOBAL.companion:AddTag("notarget")
-    GLOBAL.companion:AddTag("companion")
-    GLOBAL.companion:AddTag("ghostlyfriend")
-    local px, py, pz = portal.Transform:GetWorldPosition()
+
+    companion.entity:AddTag("notarget")
+    companion.entity:AddTag("companion")
+    companion.entity:AddTag("ghostlyfriend")
+
+    local px, py, pz = companion.portal.Transform:GetWorldPosition()
     TeleportCompanion({ x = px, y = py, z = pz })
-    GLOBAL.companion:DoTaskInTime(3, function()
-        ExecuteObjective["explore"]()
+
+    companion.entity:DoTaskInTime(3, function()
+        if not companion.entity or not companion.entity:IsValid() then return end
+        companion.entity:DoPeriodicTask(0.5, function()
+            if not companion.entity or not companion.entity:IsValid() then return end
+            UpdateCompanion()
+        end)
     end)
 end
 
-AddSimPostInit(function()
-    AddPlayerPostInit(function(inst)
-        inst:DoTaskInTime(5, function()
-            if not inst or not inst:IsValid() then return end
-            if GLOBAL.companion ~= nil then return end
-            if tryspawn == true then return end
-            tryspawn = true
-            SpawnCompanion()
-        end)
+AddPlayerPostInit(function(inst)
+    inst:DoTaskInTime(5, function()
+        if not inst or not inst:IsValid() then return end
+        if companion.entity and companion.entity:IsValid() then return end
+        SpawnCompanion()
     end)
 end)

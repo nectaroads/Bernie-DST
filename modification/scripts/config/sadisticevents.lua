@@ -1,6 +1,7 @@
 return {
     rain = {
-        messagestart = "Nuvens de chuva sobrevoam o céu!"
+        messagestart = "Nuvens de chuva sobrevoam o céu!",
+        messageend = "Uma chuva fora de época rega o solo..."
     },
     coldsnap = {
         messagestart = "Uma frente fria se aproxima!",
@@ -19,9 +20,11 @@ return {
         messagefind = "Eles vão roubar "
     },
     witchcraft = {
-        messagestart = "Você sente cheiro de morte e podridão..."
+        messagestart = "Uma maldição pútrida se aproxima de você...",
+        messageend = "Toda podridão toma conta de seus arredores."
     },
     blackout = {
-        messagestart = "As sombras consomem o céu..."
+        messagestart = "Busque luz, as sombras irão consumir a atmosfera!",
+        messageend = "Hoje a noite será longa..."
     },
 }

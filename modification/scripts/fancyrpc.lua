@@ -54,7 +54,7 @@ local function OnEntityDeath(ent, data)
     local users = GLOBAL.GetUsers()
     if not victim or not cause then return end
     if victim:HasTag("epic") then
-        GLOBAL.ExecuteOnAllShards({ key = "bernie_rpc_client_message", rpc = "bernie_rpc_client_message", type = "server", sound = "summerevent2022/carnivalgame_puckdrop/endbell", message = ("★ " .. GetSafeName(victim) .. " foi derrotado ★") or "error" }, true)
+        GLOBAL.ExecuteOnAllShards({ key = "bernie_rpc_client_message", rpc = "bernie_rpc_client_message", type = "server", sound = "summerevent2022/carnivalgame_puckdrop/endbell", message = ("★ " .. GetSafeName(victim) .. " foi derrotado ★") or "error" })
         local jsonEncoded = GLOBAL.json.encode({ key = "epic_death", victim = GetSafeName(victim), cause = GetSafeName(cause), witness = PickWitness(cause.userid), users = users })
         GLOBAL.SendRequest(jsonEncoded)
     else
@@ -149,7 +149,7 @@ local function OnComponentEater(self)
             local users = GLOBAL.GetUsers()
             local userid = self.inst.userid
             lastalert = "eat" .. cause .. victim
-            GLOBAL.ExecuteOnAllShards({ key = "bernie_rpc_client_message", rpc = "bernie_rpc_client_message", type = "server", message = (cause .. " está comendo " .. victim .. "...") }, true)
+            GLOBAL.ExecuteOnAllShards({ key = "bernie_rpc_client_message", rpc = "bernie_rpc_client_message", type = "server", message = (cause .. " está comendo " .. victim .. "...") })
             local jsonEncoded = GLOBAL.json.encode({ key = "entity_eat", victim = victim, cause = cause, userid = userid, users = users })
             GLOBAL.SendRequest(jsonEncoded)
         end
@@ -172,7 +172,7 @@ local function OnComponentBurnable(self)
             if lastalert == ("burn" .. cause .. victim) then return result end
             local users = GLOBAL.GetUsers()
             lastalert = "burn" .. cause .. victim
-            if structure then GLOBAL.ExecuteOnAllShards({ key = "bernie_rpc_client_message", rpc = "bernie_rpc_client_message", type = "server", message = cause .. " está queimando " .. victim .. "...", whisper = false, }, true) end
+            if structure then GLOBAL.ExecuteOnAllShards({ key = "bernie_rpc_client_message", rpc = "bernie_rpc_client_message", type = "server", message = cause .. " está queimando " .. victim .. "...", whisper = false, }) end
             local jsonEncoded = GLOBAL.json.encode({ key = "player_burn", victim = victim, cause = cause, userid = userid, structure = structure, users = users })
             GLOBAL.SendRequest(jsonEncoded)
         end
@@ -197,7 +197,7 @@ GLOBAL.ACTIONS.HAMMER.fn = function(act)
             if lastalert ~= ("break" .. cause .. victim) then
                 local users = GLOBAL.GetUsers()
                 lastalert = "break" .. cause .. victim
-                if structure then GLOBAL.ExecuteOnAllShards({ key = "bernie_rpc_client_message", rpc = "bernie_rpc_client_message", type = "server", message = cause .. " está quebrando " .. victim .. "...", whisper = false, }, true) end
+                if structure then GLOBAL.ExecuteOnAllShards({ key = "bernie_rpc_client_message", rpc = "bernie_rpc_client_message", type = "server", message = cause .. " está quebrando " .. victim .. "...", whisper = false, }) end
                 local jsonEncoded = GLOBAL.json.encode({ key = "player_break", victim = victim, cause = cause, userid = userid, structure = structure, users = users, })
                 GLOBAL.SendRequest(jsonEncoded)
             end

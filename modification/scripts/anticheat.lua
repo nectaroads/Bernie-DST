@@ -64,6 +64,7 @@ if GLOBAL.TheNet:IsDedicated() then
     end
 else
     -- Client
+
     local lastdistance = 30
     local deltasqupdate = 4
 
@@ -106,9 +107,36 @@ else
             end
         end
 
-        inst:DoTaskInTime(3, function()
-            local cursedmods = { ["widgets/biomelabels"] = "Biome Revealer (Client)", }
-            FindProblematicStuff(cursedmods)
+        local function FindProblematicMods(arr)
+            local cursedmods = {}
+
+            for id, name in GLOBAL.pairs(arr) do
+                if GLOBAL.KnownModIndex:IsModEnabled("workshop-" .. tostring(id)) then cursedmods[id] = name end
+            end
+
+            if GLOBAL.next(cursedmods) ~= nil then
+                if not config then return end
+                local title = "\n\n\n\n" .. (config.title or "title")
+                local description = "\n\n" .. (config.description or "description")
+                local modnames = {}
+                for _, name in GLOBAL.pairs(cursedmods) do
+                    GLOBAL.table.insert(modnames, name)
+                end
+                description = description .. GLOBAL.table.concat(modnames, ", ")
+                GLOBAL.TheFrontEnd:PushScreen(require("screens/bigpopupdialog")(title, description, { { text = config.leave, cb = function() GLOBAL.DoRestart(true) end }, { text = config.accept, cb = function() GLOBAL.DoRestart(true) end }, }))
+                if inst then
+                    inst:DoTaskInTime(10, function()
+                        if inst then GLOBAL.DoRestart(true) end
+                    end)
+                end
+            end
+        end
+
+        inst:DoTaskInTime(1, function()
+            local cursedclasses = { ["widgets/biomelabels"] = "Biome Revealer (Client)", }
+            FindProblematicStuff(cursedclasses)
+            local cursedmods = { [3091801418] = "Scan Map" }
+            FindProblematicMods(cursedmods)
         end)
     end
 
@@ -265,10 +293,15 @@ else
     end
 
     AddPlayerPostInit(function(inst)
-        inst:DoTaskInTime(3, function()
-            if (inst == GLOBAL.ThePlayer) then
-                BeWitnessToServer(inst)
-            end
+        if (inst ~= GLOBAL.ThePlayer) then return end
+        inst:DoTaskInTime(1, function()
+            BeWitnessToServer(inst)
+        end)
+        inst:DoPeriodicTask(1, function()
+            -- Find and disable some cheats
+            if GLOBAL.TheWorld and GLOBAL.TheWorld.net and GLOBAL.TheWorld.net.components then GLOBAL.TheWorld.net.components.fullmapscan = nil end
+            if GLOBAL.TheWorld and GLOBAL.TheWorld.net and GLOBAL.TheWorld.net.components then GLOBAL.TheWorld.net.components.globalpositions = nil end
+            if GLOBAL.TheWorld and GLOBAL.TheWorld.net and GLOBAL.TheWorld.net.components then GLOBAL.TheWorld.net.components.scannedicons = nil end
         end)
     end)
 end

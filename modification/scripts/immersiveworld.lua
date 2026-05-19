@@ -2,6 +2,18 @@ print('[Bernie] Starting Immersive-World module')
 
 local config = GLOBAL.LoadConfig("immersiveworld.lua")
 
+-- Tools
+local function WorldHasTile(tile)
+    local map = GLOBAL.TheWorld.Map
+    local width, height = map:GetSize()
+    for x = 0, width - 1 do
+        for y = 0, height - 1 do
+            if map:GetTile(x, y) == tile then return true end
+        end
+    end
+    return false
+end
+
 -- Priority stuff
 GLOBAL.ACTIONS.EAT.priority = GLOBAL.ACTIONS.FERTILIZE.priority + 1
 
@@ -89,6 +101,119 @@ for _, prefab in ipairs(sittable) do
 end
 
 if GLOBAL.TheNet:IsDedicated() then
+    -- Worldgen
+    local function GetDistanceFromLand(map, x, z, maxcheck)
+        local dist = 0
+        while dist <= maxcheck do
+            local found_land = false
+            for angle = 0, 360, 20 do
+                local rad = angle * GLOBAL.DEGREES
+                local px = x + math.cos(rad) * dist
+                local pz = z + math.sin(rad) * dist
+                local tile = map:GetTileAtPoint(px, 0, pz)
+                if not GLOBAL.IsOceanTile(tile) and tile ~= GLOBAL.WORLD_TILES.IMPASSABLE then
+                    found_land = true
+                    break
+                end
+            end
+            if found_land then return dist end
+            dist = dist + 2
+        end
+        return maxcheck
+    end
+
+    local MIN_COAST_DISTANCE = 2
+    local MAX_COAST_DISTANCE = 4
+
+    local function FindOceanNearPoint(x, z)
+        local map = GLOBAL.TheWorld.Map
+        local candidates = {}
+        local MIN_COAST_DISTANCE = 10
+        local MAX_COAST_DISTANCE = 22
+        for radius = 20, 100, 4 do
+            for angle = 0, 360, 12 do
+                local rad = angle * GLOBAL.DEGREES
+                local px = x + math.cos(rad) * radius
+                local pz = z + math.sin(rad) * radius
+                local tile = map:GetTileAtPoint(px, 0, pz)
+                if GLOBAL.IsOceanTile(tile) then
+                    local coastdist = GetDistanceFromLand(map, px, pz, 40)
+                    if coastdist >= MIN_COAST_DISTANCE and coastdist <= MAX_COAST_DISTANCE then
+                        table.insert(candidates, { x = px, z = pz, })
+                    end
+                end
+            end
+        end
+        if #candidates > 0 then return candidates[math.random(#candidates)] end
+    end
+
+    local function SpawnMandrakeForestOceanTree(inst)
+        if inst._mandrakeforest_oceantree_spawned then return end
+        local map = GLOBAL.TheWorld.Map
+        local w, h = map:GetSize()
+        local radius = math.max(w, h) * 2
+        local mandrakes = GLOBAL.TheSim:FindEntities(0, 0, 0, radius, nil, { "INLIMBO" })
+        local valid_mandrakes = {}
+        for _, ent in ipairs(mandrakes) do
+            if ent.prefab == "mandrake_planted" then table.insert(valid_mandrakes, ent) end
+        end
+        if #valid_mandrakes <= 0 then return end
+        local mandrake = valid_mandrakes[math.random(#valid_mandrakes)]
+        local x, y, z = mandrake.Transform:GetWorldPosition()
+        local pos = FindOceanNearPoint(x, z)
+        if pos ~= nil then
+            local tree = GLOBAL.SpawnPrefab("oceantree_pillar")
+            if tree ~= nil then
+                tree.Transform:SetPosition(pos.x, 0, pos.z)
+                inst._mandrakeforest_oceantree_spawned = true
+            end
+        end
+    end
+
+    AddPrefabPostInit("world", function(inst)
+        local _OnSave = inst.OnSave
+        local _OnLoad = inst.OnLoad
+        inst.OnSave = function(inst, data)
+            if _OnSave ~= nil then _OnSave(inst, data) end
+            data.mandrakeforest_oceantree_spawned = inst._mandrakeforest_oceantree_spawned
+        end
+
+        inst.OnLoad = function(inst, data)
+            if _OnLoad ~= nil then _OnLoad(inst, data) end
+            if data ~= nil then inst._mandrakeforest_oceantree_spawned = data.mandrakeforest_oceantree_spawned end
+        end
+
+        inst:DoTaskInTime(1, SpawnMandrakeForestOceanTree)
+    end)
+
+    -- Frogs
+    AddBrainPostInit("frogbrain", function(brain)
+        local root = brain.bt ~= nil and brain.bt.root or nil
+        if root == nil or root.children == nil then return end
+        local gohome = root.children[4]
+        if gohome ~= nil and gohome.children ~= nil and gohome.children[1] ~= nil then
+            gohome.children[1].fn = function() return GLOBAL.TheWorld.state.isday or GLOBAL.TheWorld.state.iswinter end
+        end
+        local wander = root.children[5]
+        if wander ~= nil and wander.children ~= nil and wander.children[1] ~= nil then
+            wander.children[1].fn = function()
+                if brain.inst.islunar then return true end
+                return GLOBAL.TheWorld.state.isdusk or GLOBAL.TheWorld.state.isnight
+            end
+        end
+    end)
+
+    -- Ponds to frogs
+    AddPrefabPostInit("pond", function(inst)
+        inst.dayspawn = false
+        inst:DoTaskInTime(0, function(inst)
+            if inst.components.childspawner ~= nil then
+                inst.components.childspawner:StopSpawning()
+                if not GLOBAL.TheWorld.state.isday and not GLOBAL.TheWorld.state.iswinter then inst.components.childspawner:StartSpawning() end
+            end
+        end)
+    end)
+
     -- Make some annoying objects burnable
     AddPrefabPostInitAny(function(inst)
         if not GLOBAL.TheWorld.ismastersim then return end

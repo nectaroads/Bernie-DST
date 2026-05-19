@@ -61,7 +61,7 @@ GLOBAL.LoadConfig = function(target)
     return false
 end
 
-if not GLOBAL.TheNet:IsDedicated() then return end -- Only server
+if not GLOBAL.TheNet:IsDedicated() then return end
 
 GLOBAL.HandleShardFunction = {}
 GLOBAL.RPCS = {}
@@ -112,6 +112,7 @@ GLOBAL.ExecuteOnAllShards = function(data, onlymaster)
     if onlymaster then return end
     for shard, _ in pairs(GLOBAL.Shard_GetConnectedShards()) do
         if shard ~= shard_id then
+            if data.rpc and not GLOBAL.RPCS[data.rpc] then GLOBAL.RPCS[data.rpc] = GLOBAL.GetClientModRPC(data.rpc, "content") end
             local json = GLOBAL.json.encode(data)
             SendModRPCToShard(GetShardModRPC("bernie_rpc_shard_function", "content"), shard, json)
         end

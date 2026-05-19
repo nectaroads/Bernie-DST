@@ -166,6 +166,24 @@ if GLOBAL.TheNet:IsDedicated() then
         end
     end
 
+    -- Less annoying Willow gameplay, she gets ember automatically
+    local willow_ember_common = require("prefabs/willow_ember_common")
+    local _SpawnEmberAt = willow_ember_common.SpawnEmberAt
+
+    willow_ember_common.SpawnEmberAt = function(x, y, z, victim, marksource)
+        if marksource and victim ~= nil and victim._embersource ~= nil then
+            local killer = victim._embersource
+            if killer.prefab == "willow" and killer.components.inventory ~= nil and killer:IsValid() and not killer:HasTag("playerghost") then
+                local ember = GLOBAL.SpawnPrefab("willow_ember")
+                ember._embersource = killer
+                killer.components.inventory:GiveItem(ember, nil, killer:GetPosition())
+                return
+            end
+        end
+
+        return _SpawnEmberAt(x, y, z, victim, marksource)
+    end
+
     -- Dragonfly never gets stunned
     AddStategraphPostInit("dragonfly", function(sg)
         sg.events.stunned = EventHandler("stunned", function(inst)
@@ -184,6 +202,11 @@ if GLOBAL.TheNet:IsDedicated() then
         local inst = self.inst
 
         if inst then
+            -- Walls resistance stuff
+            if damage ~= nil and inst:HasTag("wall") then
+                damage = damage * 0.2
+            end
+
             -- if it's Willow's skill, burn
             local willowskills = { willow_shadow_flame = true, flamethrower_fx = true }
             if weapon and willowskills[weapon.prefab] and inst.components.burnable then
@@ -471,17 +494,20 @@ if GLOBAL.TheNet:IsDedicated() then
 
     -- Change loottable
     local changeloot = {
-        walrus = { { 'meat', 1.00 }, { 'blowdart_pipe', 0.6 }, { 'walrushat', 0.40 }, { 'walrus_tusk', 0.3 }, { 'walrus_tusk', 0.3 } },
+        walrus = { { 'meat', 1.00 }, { 'blowdart_pipe', 0.6 }, { 'walrushat', 0.50 }, { 'walrus_tusk', 0.5 }, { 'walrus_tusk', 0.5 } },
         pigman = { { 'meat', 1.00 }, { 'pigskin', 0.6 } }
     }
 
     for prefab, loot in pairs(changeloot) do
         AddPrefabPostInit(prefab, function(inst)
             GLOBAL.SetSharedLootTable(prefab, loot)
-            if inst.components.lootdropper ~= nil then inst.components.lootdropper:SetChanceLootTable(prefab) end
+            if inst.components.lootdropper ~= nil then
+                inst.components.lootdropper:SetLoot({})
+                inst.components.lootdropper:SetChanceLootTable(nil)
+                inst.components.lootdropper:SetChanceLootTable(prefab)
+            end
         end)
     end
-else
 end
 
 for boss, _ in pairs(bosses) do
@@ -498,7 +524,7 @@ end
 
 -- New recipes
 env.AddRecipe2("piggyback", { GLOBAL.Ingredient("pigskin", 6), GLOBAL.Ingredient("silk", 6), GLOBAL.Ingredient("rope", 4) }, GLOBAL.TECH.SCIENCE_TWO)
-env.AddRecipe2("compass", { GLOBAL.Ingredient("goldnugget", 3), GLOBAL.Ingredient("marble", 1) }, GLOBAL.TECH.SCIENCE_TWO)
+env.AddRecipe2("compass", { GLOBAL.Ingredient("goldnugget", 1), GLOBAL.Ingredient("marble", 1) }, GLOBAL.TECH.SCIENCE_TWO)
 
 -- Tuning
 TUNING.MONKEY_TOKEN_COUNTS.LEVEL_1 = 0
@@ -573,6 +599,8 @@ TUNING.BEEQUEEN_ATTACK_RANGE = 5
 TUNING.BEEQUEEN_HIT_RANGE = 5
 TUNING.BEEQUEEN_SPAWNGUARDS_CD = { 28, 26, 24, 22 }
 TUNING.BEEQUEEN_FOCUSTARGET_CD = { 120, 60, 32, 24 }
+TUNING.DEERCLOPS_ATTACKS_PER_SEASON = 6
+TUNING.NO_BOSS_TIME = 0
 
 TUNING.HEATROCK_NUMUSES = TUNING.HEATROCK_NUMUSES * 3
 TUNING.HEAT_ROCK_CARRIED_BONUS_HEAT_FACTOR = 0.8
@@ -587,4 +615,3 @@ TUNING.NIGHT_COLD = -14
 TUNING.SUMMER_RAIN_TEMP = -16
 TUNING.MIN_ENTITY_TEMP = -32.5
 TUNING.MAX_ENTITY_TEMP = 123.5
-TUNING.NO_BOSS_TIME = 0

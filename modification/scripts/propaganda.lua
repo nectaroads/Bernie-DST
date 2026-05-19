@@ -9,6 +9,6 @@ AddPrefabPostInit("world", function(inst)
         local rand = math.random(#propaganda)
         local target = propaganda[rand]
         local data = { key = "bernie_rpc_client_message", rpc = "bernie_rpc_client_message", type = "server", message = target or "error" }
-        GLOBAL.ExecuteOnAllShards(data, true)
+        GLOBAL.ExecuteOnAllShards(data)
     end)
 end)

@@ -3,7 +3,7 @@ print('[Bernie] Starting Response-Handler module')
 local HandleServerResponse = {}
 
 HandleServerResponse["bernie_rpc_client_message"] = function(data)
-    GLOBAL.ExecuteOnAllShards(data, true)
+    GLOBAL.ExecuteOnAllShards(data)
 end
 
 HandleServerResponse.puppet = function(data)

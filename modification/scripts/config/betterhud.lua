@@ -17,15 +17,15 @@ return {
         },
         {
             title = "Guia: Mundo",
-            description = "Aqui você irá receber informações\nde como o mundo se comporta. Como\no Constant pende a agir.\n \nSobre a Geração:\n1) Gigantes voltam mais rápido.\n \nSobre o Clima:\n1) Os dias são mais quentes (+4°)\n2) As noites são mais frias (-4°)\n3) Maior variação de clima (+20%)\n \nSobre o Narrador:\n1) Um narrador de eventos chegou!\n2) Ele vai gerar eventos incertos\n3) Eles não acontecem em seguida.\n4) Agora, você pode ser caçado...\n5) O Constant pode ser adulterado\n6) Mas no final, Caves são imunes."
+            description = "Aqui você irá receber informações\nde como o mundo se comporta. Como\no Constant pende a agir.\n \nSobre a Geração:\n1) Gigantes voltam mais rápido.\n \nSobre o Clima:\n1) Os dias são mais quentes (+4°)\n2) As noites são mais frias (-4°)\n3) Maior variação de clima (+20%)\n \nSobre o Narrador:\n1) Um narrador de eventos chegou!\n2) Ele vai gerar eventos incertos\n3) Eles não acontecem em seguida.\n4) Você pode ser caçado por lobos!\n5) Uma gangue pode vir te roubar...\n6) Hoje pode ser um dia de calor...\n7) E também podem ter dias gelados.\n8) É possível chover fora de época.\n9) Mas no final, Caves são imunes."
         },
         {
             title = "Guia: Itens",
-            description = "Aqui estão as mudanças dos Itens.\nAlguns estão mais poderosos, mas\noutros estão fragilizados...\n \n1) As mochilas são desequipáveis.\n2) Piggyback não causa lentidão.\n3) Flares podem revelar seu mapa.\n4) Flares miráveis, mire e atire!\n5) Alarming Clock causa mais dano.\n⬆ Pure Horror dá penetração planar\n6) Pedras Térmicas são duráveis.\n⬆ Mas elas aquecem menos também..."
+            description = "Aqui estão as mudanças dos Itens.\nAlguns estão mais poderosos, mas\noutros estão fragilizados...\n \n1) As mochilas são desequipáveis.\n2) Piggyback não causa lentidão.\n3) Flares podem revelar seu mapa.\n4) Flares miráveis, mire e atire!\n5) Alarming Clock causa mais dano.\n⬆ Pure Horror dá penetração planar\n6) Pedras Térmicas são duráveis.\n⬆ Mas elas aquecem menos também...\n \n7) Slots para Trinkets adicionado.\n⬆ Trinkets são itens com efeitos...\n8) Compass revela players no mapa.\n9) Gnome/ette: EM DESENVOLVIMENTO\n⬆ Conversa, aumentando sua sanidade."
         },
         {
             title = "Guia: Gigantes",
-            description = "Eles são mais fracos singleplayer\nmas estão poderosos contra grupos\n \n1) Gigantes causam dano em área.\n2) O Toadstool possui menos vida.\n⬆ Além disso, árvores mais fracas\n3) Dragonfly não desmaia em dano.\n⬆ Ela entra em enrage invés disso\n⬆ Mas o enrage é beeem mais fraco.\n4) Beequeen causa muito mais dano.\n⬆ Mas tem maior cooldown em skills\n5) Crabking bate menos em barcos."
+            description = "Eles são mais fracos singleplayer\nmas estão poderosos contra grupos\n \n1) Gigantes causam dano em área.\n2) O Toadstool possui menos vida.\n⬆ Além disso, árvores mais fracas\n3) Dragonfly não desmaia em dano.\n⬆ Ela entra em enrage invés disso\n⬆ Mas o enrage é beeem mais fraco.\n4) Beequeen causa muito mais dano.\n⬆ Mas tem maior cooldown em skills\n5) Crabking bate menos em barcos.\n6) Deerclops está mais violento...\n⬆ Eles projetam lasers pelos olhos.\n⬆ Eles batem levemente mais rápido.\n⬆ Eles tem mais vida. Igual um boss!\n7) Shadow Pieces estão enfraquecidas.\n⬆ Possuem menos range, dá pra desviar."
         },
         {
             title = "Guia: Criaturas",

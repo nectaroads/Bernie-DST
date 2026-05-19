@@ -133,10 +133,13 @@ function OnWorldPostInit(inst)
     inst:ListenForEvent("entercharacterselect", ShowWelcomeMessage)
     GLOBAL.BindKey(282, function()
         if guidebookopen == false then
-            local screen = GLOBAL.TheFrontEnd:GetActiveScreen()
-            if screen and screen.name == "TextListPopupDialog" then return end
             ShowGuidebookPage()
             guidebookopen = true
+            if GLOBAL.ThePlayer then
+                GLOBAL.ThePlayer:DoTaskInTime(3, function()
+                    guidebookopen = false
+                end)
+            end
         end
     end)
 end
