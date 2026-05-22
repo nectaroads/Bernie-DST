@@ -169,9 +169,10 @@ local function OnComponentBurnable(self)
             local cause = GetSafeName(player)
             local userid = player.userid
             local structure = self.inst:HasTag("structure") or false
-            if lastalert == ("burn" .. cause .. victim) then return result end
-            local users = GLOBAL.GetUsers()
+            if not structure then return end
+            if lastalert == "burn" .. cause .. victim then return result end
             lastalert = "burn" .. cause .. victim
+            local users = GLOBAL.GetUsers()
             if structure then GLOBAL.ExecuteOnAllShards({ key = "bernie_rpc_client_message", rpc = "bernie_rpc_client_message", type = "server", message = cause .. " está queimando " .. victim .. "...", whisper = false, }) end
             local jsonEncoded = GLOBAL.json.encode({ key = "player_burn", victim = victim, cause = cause, userid = userid, structure = structure, users = users })
             GLOBAL.SendRequest(jsonEncoded)

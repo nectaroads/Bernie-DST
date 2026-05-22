@@ -63,6 +63,8 @@ end
 
 if not GLOBAL.TheNet:IsDedicated() then return end
 
+GLOBAL.AddClientModRPCHandler("bernie_rpc_client_message", "content", function() end)
+
 GLOBAL.HandleShardFunction = {}
 GLOBAL.RPCS = {}
 
@@ -89,10 +91,9 @@ AddShardModRPCHandler("bernie_rpc_shard_function", "content", function(_, json)
     if GLOBAL.HandleShardFunction[data.key] then GLOBAL.HandleShardFunction[data.key](data) end
 end)
 
-GLOBAL.AddClientModRPCHandler("bernie_rpc_client_message", "content", function() end)
-
 GLOBAL.HandleShardFunction["bernie_rpc_client_message"] = function(data)
     local json = GLOBAL.json.encode(data)
+    if not GLOBAL.RPCS[data.rpc] then return end
     if not data.userid then
         local users = GLOBAL.GetUsers()
         for _, player in pairs(users) do
@@ -107,12 +108,14 @@ GLOBAL.ExecuteOnAllShards = function(data, onlymaster)
     if not data then return end
     if not GLOBAL.HandleShardFunction[data.key] then return end
     if data.rpc and not GLOBAL.RPCS[data.rpc] then GLOBAL.RPCS[data.rpc] = GLOBAL.GetClientModRPC(data.rpc, "content") end
+    if not GLOBAL.RPCS[data.rpc] then return end
     GLOBAL.HandleShardFunction[data.key](data)
     local shard_id = GLOBAL.TheWorld and GLOBAL.TheWorld.shardid
     if onlymaster then return end
     for shard, _ in pairs(GLOBAL.Shard_GetConnectedShards()) do
+        if data.rpc and not GLOBAL.RPCS[data.rpc] then GLOBAL.RPCS[data.rpc] = GLOBAL.GetClientModRPC(data.rpc, "content") end
+        if not GLOBAL.RPCS[data.rpc] then return end
         if shard ~= shard_id then
-            if data.rpc and not GLOBAL.RPCS[data.rpc] then GLOBAL.RPCS[data.rpc] = GLOBAL.GetClientModRPC(data.rpc, "content") end
             local json = GLOBAL.json.encode(data)
             SendModRPCToShard(GetShardModRPC("bernie_rpc_shard_function", "content"), shard, json)
         end

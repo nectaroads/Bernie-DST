@@ -153,4 +153,19 @@ function buildEmbed({ author = null, title = null, description = null, thumbnail
   return embed;
 }
 
-module.exports = { startDiscordClient, getClientChannel, getClientGuild, getClientRole, buildEmbed };
+function validateStaff(interaction) {
+  const staffrole = dotenv.STAFFID;
+
+  const hasStaffRole = interaction.member?.roles?.cache?.has(staffrole);
+
+  if (!hasStaffRole) {
+    interaction.reply({ embeds: [buildEmbed({ color: 0xffb356, description: '`⚠️` · **Atenção, você não tem permissão para isso!**' })], ephemeral: true }).catch(error => {
+      console.log(`[Error] Application error: ${error}`);
+    });
+    return false;
+  }
+
+  return true;
+}
+
+module.exports = { startDiscordClient, getClientChannel, getClientGuild, getClientRole, buildEmbed, validateStaff };

@@ -210,7 +210,7 @@ local sadisticevents = {
 }
 
 local function RollSadisticEvent(inst)
-    if math.random() > 0.2 then return end
+    if math.random() > 0.18 then return end
     local keys = {}
     for k, v in pairs(sadisticevents) do
         if v.name ~= currentevent then table.insert(keys, k) end
@@ -240,7 +240,7 @@ AddPrefabPostInit("world", function(inst)
             local dice = math.random(3, 36)
             inst:DoTaskInTime(dice, function()
                 local currentday = GLOBAL.TheWorld.state.cycles
-                if currentday - lasteventday < 2 then return end
+                if currentday - lasteventday < 3 then return end
                 lasteventday = currentday
                 RollSadisticEvent(inst)
             end)

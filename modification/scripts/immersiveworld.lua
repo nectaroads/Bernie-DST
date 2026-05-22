@@ -14,6 +14,69 @@ local function WorldHasTile(tile)
     return false
 end
 
+-- Weird run
+local G = GLOBAL
+local State = G.State
+local TimeEvent = G.TimeEvent
+local FRAMES = G.FRAMES
+
+local function AddWeirdMonkeyRun(sgname)
+    AddStategraphState(sgname, State {
+        name = "weird_run_monkey",
+        tags = { "moving", "running", "canrotate", "monkey" },
+
+        onenter = function(inst)
+            if inst.components.locomotor ~= nil then inst.components.locomotor:RunForward() end
+            inst.Transform:SetSixFaced()
+            if not inst.AnimState:IsCurrentAnimation("run_monkey_loop") then inst.AnimState:PlayAnimation("run_monkey_loop", true) end
+            inst.sg:SetTimeout(2)
+        end,
+
+        timeline =
+        {
+            TimeEvent(4 * FRAMES, function(inst) if inst.SoundEmitter ~= nil then inst.SoundEmitter:PlaySound("dontstarve/movement/run_dirt") end end),
+            TimeEvent(10 * FRAMES, function(inst) if inst.SoundEmitter ~= nil then inst.SoundEmitter:PlaySound("dontstarve/movement/run_dirt") end end),
+        },
+
+        onupdate = function(inst)
+            if inst.components.locomotor ~= nil then inst.components.locomotor:RunForward() end
+        end,
+
+        ontimeout = function(inst)
+            inst.sg:GoToState("weird_run_monkey")
+        end,
+
+        onexit = function(inst)
+            inst.Transform:SetFourFaced()
+        end,
+    })
+end
+
+AddWeirdMonkeyRun("wilson")
+AddWeirdMonkeyRun("wilson_client")
+
+-- Oceantree Stuff
+local OCEANTREE_PILLAR_CANOPY_MULT = 1.5
+
+TUNING.SHADE_CANOPY_RANGE_SMALL = TUNING.SHADE_CANOPY_RANGE_SMALL * OCEANTREE_PILLAR_CANOPY_MULT
+
+AddPrefabPostInit("oceantree_pillar", function(inst)
+    local range = TUNING.SHADE_CANOPY_RANGE_SMALL
+    local buffer = TUNING.WATERTREE_PILLAR_CANOPY_BUFFER
+    if not GLOBAL.TheNet:IsDedicated() then
+        inst:DoTaskInTime(0, function(inst)
+            if inst.components.canopyshadows ~= nil then inst.components.canopyshadows.range = math.floor(range / 4) end
+        end)
+    end
+
+    if not GLOBAL.TheWorld.ismastersim then return end
+
+    inst:DoTaskInTime(0, function(inst)
+        if inst.components.playerprox ~= nil then inst.components.playerprox:SetDist(range, range + buffer) end
+        if inst.components.lightningblocker ~= nil then inst.components.lightningblocker:SetBlockRange(range) end
+    end)
+end)
+
 -- Priority stuff
 GLOBAL.ACTIONS.EAT.priority = GLOBAL.ACTIONS.FERTILIZE.priority + 1
 
@@ -39,6 +102,7 @@ local FLARE_DESTINATION = AddAction("FLARE_DESTINATION", "Flare Destination", fu
 end)
 
 FLARE_DESTINATION.rmb = true
+FLARE_DESTINATION.priority = 99
 FLARE_DESTINATION.map_only = true
 FLARE_DESTINATION.map_works_on_unexplored = true
 FLARE_DESTINATION.closes_map = true
@@ -123,7 +187,7 @@ if GLOBAL.TheNet:IsDedicated() then
     end
 
     local MIN_COAST_DISTANCE = 2
-    local MAX_COAST_DISTANCE = 4
+    local MAX_COAST_DISTANCE = 3
 
     local function FindOceanNearPoint(x, z)
         local map = GLOBAL.TheWorld.Map
@@ -273,6 +337,12 @@ if GLOBAL.TheNet:IsDedicated() then
             if realowner.SoundEmitter then realowner.SoundEmitter:PlaySound("yotb_2021/common/hitching_post/unhitching") end
             if realowner.sg and (realowner.components.rider == nil or not realowner.components.rider:IsRiding()) then realowner.sg:GoToState("slip") end
             realowner.components.inventory:DropItem(inst, true, true)
+            local dice2 = math.random(0, 2)
+            if dice2 == 1 then
+                local gnomequotes = config.gnomeacidjokes
+                local quote = gnomequotes[math.random(#gnomequotes)]
+                if quote ~= nil and inst.components.talker ~= nil then inst.components.talker:Say(quote) end
+            end
             if dice == 2 then
                 local x, y, z = realowner.Transform:GetWorldPosition()
                 local theta = math.random() * GLOBAL.TWOPI

@@ -1,15 +1,17 @@
 print('[Bernie] Starting Another-Rebalance module')
 
+local config = GLOBAL.LoadConfig("anotherrebalance.lua")
+
 -- Trinket slot
 local Inv = require "widgets/inventorybar"
 
-local trinkets = { compass = true }
+local trinkets = { compass = true, trinket_4 = true, trinket_13 = true }
 
 Assets = Assets or {}
 table.insert(Assets, Asset("IMAGE", "images/trinket.tex"))
 table.insert(Assets, Asset("ATLAS", "images/trinket.xml"))
 
-GLOBAL.EQUIPSLOTS = { HANDS = "hands", HEAD = "head", BODY = "body", TRINKET = "trinket" }
+GLOBAL.EQUIPSLOTS.TRINKET = "trinket"
 
 AddGlobalClassPostConstruct("widgets/inventorybar", "Inv", function()
     local Inv_Refresh_base = Inv.Refresh or function() return "" end
@@ -56,6 +58,7 @@ AddPrefabPostInitAny(function(inst)
     if trinkets[inst.prefab] then
         inst:AddTag("trinket")
         if not GLOBAL.TheWorld.ismastersim then return inst end
+        if inst.components.stackable ~= nil then inst:RemoveComponent("stackable") end
         if inst.components.equippable == nil then inst:AddComponent("equippable") end
         inst.components.equippable.equipslot = GLOBAL.EQUIPSLOTS.TRINKET
     end
@@ -82,7 +85,7 @@ end)
 
 local wigfridcombos = {}
 
-local bosses = { spiderqueen = { name = "High Weaver", blacklist = { spider = true, spider_warrior = true, spider_water = true, spider_dropper = true, spider_healer = true, spider_spitter = true, spider_moon = true, spider_hider = true } }, alterguardian_phase1_lunarrift = { name = "Celestial Revenant", blacklist = {} }, alterguardian_phase4_lunarrift = { name = "Celestial Scion", blacklist = {} }, wagboss_robot = { name = "W.A.R.B.O.T", blacklist = {} }, mock_dragonfly = { name = "Wilting Dragonfly", blacklist = {} }, mothergoose = { name = "The Mother Goose", blacklist = {} }, moonmaw_dragonfly = { name = "Moonmaw Dragonfly", blacklist = {} }, hoodedwidow = { name = "The Hooded Widow", blacklist = {} }, eyeofterror = { name = "The Eye of Terror", blacklist = {} }, dragonfly = { name = "Mother Dragonfly", blacklist = {} }, moose = { name = "The Moose/Goose", blacklist = {} }, bearger = { name = "Dormant Bearger", blacklist = {} }, mutatedbearger = { name = "Armored Bearger", blacklist = {} }, enraged_klaus = { name = "Vengeful Klaus ⚠", blacklist = {} }, mutateddeerclops = { name = "Crystal Deerclops", blacklist = {} }, twinofterror2 = { name = "Hungry Spazmatism", blacklist = {} }, antlion = { name = "Desert Antlion", blacklist = {} }, toadstool_dark = { name = "Misery Toadstool ⚠", blacklist = {} }, enraged_dragonfly = { name = "Burning Dragonfly ⚠", blacklist = {} }, twinofterror1 = { name = "Seeker Retinazor", blacklist = {} }, stalker_atrium = { name = "Ancient Fuelweaver", blacklist = {} }, sharkboi = { name = "Defiant Frostjaw", blacklist = {} }, mutatedwarg = { name = "Possessed Warg", blacklist = {} }, shadow_knight = { name = "Shadow Knight", blacklist = {} }, shadow_bishop = { name = "Shadow Bishop", blacklist = {} }, beequeen = { name = "Royal Bee Queen", blacklist = { beeguard = true, bee = true, killerbee = true } }, crabking = { name = "Mighty Crab King", blacklist = {} }, deerclops = { name = "Chilling Deerclops", blacklist = {} }, daywalker = { name = "Nightmare Werepig", blacklist = {} }, minotaur = { name = "Ancient Guardian", blacklist = {} }, daywalker2 = { name = "Scrappy Werepig", blacklist = {} }, malbatross = { name = "Flying Malbatross", blacklist = {} }, shadow_rook = { name = "Shadow Rook", blacklist = {} }, klaus = { name = "Wicked Klaus", blacklist = {} }, toadstool = { name = "Grotto Toadstool", blacklist = {} }, alterguardian_phase3 = { name = "Celestial Champion", blacklist = {} } }
+local bosses = { leif_sparse = { name = "Sparse Treeguard", blacklist = {} }, leif = { name = "Treeguard", blacklist = {} }, spiderqueen = { name = "High Weaver", blacklist = { spider = true, spider_warrior = true, spider_water = true, spider_dropper = true, spider_healer = true, spider_spitter = true, spider_moon = true, spider_hider = true } }, alterguardian_phase1_lunarrift = { name = "Celestial Revenant", blacklist = {} }, alterguardian_phase4_lunarrift = { name = "Celestial Scion", blacklist = {} }, wagboss_robot = { name = "W.A.R.B.O.T", blacklist = {} }, mock_dragonfly = { name = "Wilting Dragonfly", blacklist = {} }, mothergoose = { name = "The Mother Goose", blacklist = {} }, moonmaw_dragonfly = { name = "Moonmaw Dragonfly", blacklist = {} }, hoodedwidow = { name = "The Hooded Widow", blacklist = {} }, eyeofterror = { name = "The Eye of Terror", blacklist = {} }, dragonfly = { name = "Mother Dragonfly", blacklist = {} }, moose = { name = "The Moose/Goose", blacklist = {} }, bearger = { name = "Dormant Bearger", blacklist = {} }, mutatedbearger = { name = "Armored Bearger", blacklist = {} }, enraged_klaus = { name = "Vengeful Klaus ⚠", blacklist = {} }, mutateddeerclops = { name = "Crystal Deerclops", blacklist = {} }, twinofterror2 = { name = "Hungry Spazmatism", blacklist = {} }, antlion = { name = "Desert Antlion", blacklist = {} }, toadstool_dark = { name = "Misery Toadstool ⚠", blacklist = {} }, enraged_dragonfly = { name = "Burning Dragonfly ⚠", blacklist = {} }, twinofterror1 = { name = "Seeker Retinazor", blacklist = {} }, stalker_atrium = { name = "Ancient Fuelweaver", blacklist = {} }, sharkboi = { name = "Defiant Frostjaw", blacklist = {} }, mutatedwarg = { name = "Possessed Warg", blacklist = {} }, shadow_knight = { name = "Shadow Knight", blacklist = {} }, shadow_bishop = { name = "Shadow Bishop", blacklist = {} }, beequeen = { name = "Royal Bee Queen", blacklist = { beeguard = true, bee = true, killerbee = true } }, crabking = { name = "Mighty Crab King", blacklist = {} }, deerclops = { name = "Chilling Deerclops", blacklist = {} }, daywalker = { name = "Nightmare Werepig", blacklist = {} }, minotaur = { name = "Ancient Guardian", blacklist = {} }, daywalker2 = { name = "Scrappy Werepig", blacklist = {} }, malbatross = { name = "Flying Malbatross", blacklist = {} }, shadow_rook = { name = "Shadow Rook", blacklist = {} }, klaus = { name = "Wicked Klaus", blacklist = {} }, toadstool = { name = "Grotto Toadstool", blacklist = {} }, alterguardian_phase3 = { name = "Celestial Champion", blacklist = {} } }
 local aoecreatures = { tentacle = { name = "Tentacle", blacklist = {} } }
 
 for k, v in pairs(bosses) do
@@ -109,6 +112,22 @@ if GLOBAL.TheNet:IsDedicated() then
         if remaining_damage > 0 then
             target.components.health:DoDelta(-remaining_damage, nil, "beefalo_impact")
         end
+    end
+
+    -- No Willow's friendly fire damage
+    local Burnable = GLOBAL.require("components/burnable")
+    local old_Ignite = Burnable.Ignite
+    function Burnable:Ignite(immediate, source, doer)
+        old_Ignite(self, immediate, source, doer)
+        local controlled_burn_source = (doer ~= nil and doer:HasTag("controlled_burner")) or (source ~= nil and source:HasTag("controlled_burner"))
+        if controlled_burn_source then self.stokeablefire = true end
+    end
+
+    local Health = GLOBAL.require("components/health")
+    local old_DoFireDamage = Health.DoFireDamage
+    function Health:DoFireDamage(amount, doer, instant)
+        if self.inst ~= nil and self.inst:HasTag("player") and doer ~= nil and doer.components.burnable ~= nil and doer.components.burnable.stokeablefire then return end
+        return old_DoFireDamage(self, amount, doer, instant)
     end
 
     -- Wonkey stuff
@@ -159,9 +178,8 @@ if GLOBAL.TheNet:IsDedicated() then
         if inst:HasTag("player") then
             -- max health debuff
             if not (cause.prefab == "resurrectionstatue" or cause.prefab == "resurrectionstone") then
-                if inst.components.health ~= nil then
-                    inst.components.health:DeltaPenalty(TUNING.HEART_HEALTH_PENALTY * 2)
-                end
+                if inst.components.health ~= nil then inst.components.health:DeltaPenalty(TUNING.HEART_HEALTH_PENALTY) end
+                if inst.components.health ~= nil and cause.prefab == "multiplayer_portal" or cause.prefab == "multiplayer_portal_moonrock" then inst.components.health:DeltaPenalty(TUNING.HEART_HEALTH_PENALTY) end
             end
         end
     end
@@ -204,13 +222,27 @@ if GLOBAL.TheNet:IsDedicated() then
         if inst then
             -- Walls resistance stuff
             if damage ~= nil and inst:HasTag("wall") then
-                damage = damage * 0.2
+                damage = damage * 0.1
             end
 
             -- if it's Willow's skill, burn
             local willowskills = { willow_shadow_flame = true, flamethrower_fx = true }
-            if weapon and willowskills[weapon.prefab] and inst.components.burnable then
-                inst.components.burnable:Ignite(nil, attacker)
+            local iswillowskill = (weapon and willowskills[weapon.prefab]) or nil
+
+            if iswillowskill and inst.components.burnable then
+                if not inst:HasTag("player") then
+                    inst.components.burnable:Ignite(nil, attacker)
+                end
+            end
+
+            -- Wigfrig Beefalos have her passive
+            if attacker and attacker.prefab == "beefalo" then
+                local rider = attacker and attacker.components.rideable and attacker.components.rideable:GetRider()
+                if rider and rider:IsValid() then
+                    if rider.prefab == "wathgrithr" then
+                        damage = damage * 1.25
+                    end
+                end
             end
 
             -- If a boss is being attacked
@@ -234,7 +266,11 @@ if GLOBAL.TheNet:IsDedicated() then
                         if not bossdamagehistory[inst.GUID].size then bossdamagehistory[inst.GUID].size = 0 end
                         bossdamagehistory[inst.GUID].size = bossdamagehistory[inst.GUID].size + 1
                     end
-                    if bossdamagehistory[inst.GUID].size <= 1 then damage = damage * 1.3 end
+                    if iswillowskill then
+                        inst.components.health:DoDelta(-50 * 0.3, nil, "willow_skill_bonus", nil, attacker)
+                    else
+                        if bossdamagehistory[inst.GUID].size <= 1 then damage = damage * 1.3 end
+                    end
                 end
                 if bossdamagehistory[inst.GUID] and damage >= inst.components.health.currenthealth then bossdamagehistory[inst.GUID] = nil end
             end
@@ -366,12 +402,117 @@ if GLOBAL.TheNet:IsDedicated() then
         if activeItem and activeItem:HasTag("backpack") then inst.components.inventory:DropItem(activeItem, true, true) end
     end
 
+    -- Gnome Stuff, damn
+    local function SpawnNear(inst, prefab, radius)
+        local x, y, z = inst.Transform:GetWorldPosition()
+        local offset = GLOBAL.FindWalkableOffset(GLOBAL.Vector3(x, y, z), math.random() * 2 * GLOBAL.PI, radius or math.random(2, 6), 8, true)
+        if offset ~= nil then
+            local obj = GLOBAL.SpawnPrefab(prefab)
+            if obj ~= nil then
+                obj.Transform:SetPosition(x + offset.x, 0, z + offset.z)
+                local effect = GLOBAL.SpawnPrefab("bee_poof_big")
+                effect.Transform:SetPosition(x + offset.x, 0, z + offset.z)
+                return obj
+            end
+        end
+    end
+
+    local function GiveItem(inst, prefab)
+        local item = GLOBAL.SpawnPrefab(prefab)
+        if item ~= nil and inst.components.inventory ~= nil then
+            inst.components.inventory:GiveItem(item)
+            if inst.SoundEmitter then inst.SoundEmitter:PlaySound("yotb_2021/common/hitching_post/unhitching") end
+        end
+    end
+
+    local function DropFirstItem(inst)
+        if inst.components.inventory == nil then return end
+        for k, item in pairs(inst.components.inventory.itemslots) do
+            if item ~= nil then
+                inst.components.inventory:DropItem(item, true, true)
+                if inst.SoundEmitter then inst.SoundEmitter:PlaySound("yotb_2021/common/hitching_post/unhitching") end
+                return
+            end
+        end
+    end
+
+    local function TeleportNearby(inst)
+        local x, y, z = inst.Transform:GetWorldPosition()
+        local offset = GLOBAL.FindWalkableOffset(GLOBAL.Vector3(x, y, z), math.random() * 2 * GLOBAL.PI, math.random(6, 12), 16, true)
+        if offset ~= nil then
+            local effect = GLOBAL.SpawnPrefab("woby_dash_shadow_fx")
+            effect.Transform:SetPosition(x + offset.x, 0, z + offset.z)
+            inst:DoTaskInTime(0.1, function()
+                if not inst or not inst:IsValid() then return end
+                inst.Transform:SetPosition(x + offset.x, 0, z + offset.z)
+                local effect2 = GLOBAL.SpawnPrefab("shadow_merm_spawn_poof_fx")
+                effect2.Transform:SetPosition(x + offset.x, 0, z + offset.z)
+            end)
+        end
+    end
+
+    local function DoGnomeEvent(trinket, inst, event)
+        if event.message and trinket.components.talker then trinket.components.talker:Say(event.message) end
+        if event.spawnnearby then SpawnNear(inst, event.spawnnearby, 4) end
+        if event.spawnenemy then
+            local enemy = SpawnNear(inst, event.spawnenemy, 5)
+            if enemy and enemy.components.combat then enemy.components.combat:SetTarget(inst) end
+        end
+        if event.state and inst.sg then inst.sg:GoToState(event.state) end
+        if event.give then GiveItem(inst, event.give) end
+        if event.drop then DropFirstItem(inst) end
+        if event.teleport then TeleportNearby(inst) end
+        if event.lightning then
+            local x, y, z = inst.Transform:GetWorldPosition()
+            GLOBAL.TheWorld:PushEvent("ms_sendlightningstrike", GLOBAL.Vector3(x, y, z))
+        end
+        if event.confusion then
+            local x, y, z = inst.Transform:GetWorldPosition()
+            local effect = GLOBAL.SpawnPrefab("woby_dash_shadow_fx")
+            effect.Transform:SetPosition(x, y, z)
+            inst.AnimState:SetScale(-1, -1, -1)
+            inst:DoTaskInTime(10, function()
+                if inst:IsValid() then inst.AnimState:SetScale(1, 1, 1) end
+            end)
+        end
+        if event.wetness and inst.components.moisture then
+            inst.components.moisture:DoDelta(event.wetness)
+        end
+        if event.health and inst.components.health then
+            inst.components.health:DoDelta(event.health)
+        end
+        if event.sanity and inst.components.sanity then
+            inst.components.sanity:DoDelta(event.sanity)
+        end
+        if event.temperature and inst.components.temperature then
+            inst.components.temperature:DoDelta(event.temperature)
+        end
+    end
+
     AddSimPostInit(function()
         AddPlayerPostInit(function(inst)
             inst:ListenForEvent("itemget", OnPlayerItemGet)
             inst:ListenForEvent("equip", OnPlayerEquip)
             inst:ListenForEvent("respawnfromghost", OnEntityRevive)
             inst:ListenForEvent("respawnfromcorpse", OnEntityRevive)
+
+            inst:DoPeriodicTask(28, function()
+                local dice = math.random(0, 30)
+                if dice % 3 == 0 then
+                    local trinket = inst.components.inventory and inst.components.inventory:GetEquippedItem(GLOBAL.EQUIPSLOTS.TRINKET)
+                    if trinket == nil then return end
+                    if trinket.prefab == "trinket_4" or trinket.prefab == "trinket_13" then
+                        local events = config.gnomeevents
+                        local keys = {}
+                        for name in pairs(events) do
+                            table.insert(keys, name)
+                        end
+                        local event = events[keys[math.random(#keys)]]
+                        if event then DoGnomeEvent(trinket, inst, event) end
+                    end
+                end
+            end)
+
             if inst.components.maprevealable ~= nil then inst.components.maprevealable:AddRevealSource(inst, "compassbearer") end
         end)
     end)
@@ -494,8 +635,10 @@ if GLOBAL.TheNet:IsDedicated() then
 
     -- Change loottable
     local changeloot = {
-        walrus = { { 'meat', 1.00 }, { 'blowdart_pipe', 0.6 }, { 'walrushat', 0.50 }, { 'walrus_tusk', 0.5 }, { 'walrus_tusk', 0.5 } },
-        pigman = { { 'meat', 1.00 }, { 'pigskin', 0.6 } }
+        walrus = { { 'meat', 1.00 }, { 'blowdart_pipe', 0.5 }, { 'walrushat', 0.50 }, { 'walrus_tusk', 0.5 }, { 'walrus_tusk', 0.5 } },
+        pigman = { { 'meat', 1.00 }, { 'pigskin', 0.7 } },
+        slurtle = { { 'slurtleslime', 1.00 }, { 'slurtle_shellpieces', 0.80 }, { 'slurtleslime', 0.80 }, { 'slurtlehat', 0.30 } },
+        snurtle = { { 'slurtleslime', 1.00 }, { 'slurtle_shellpieces', 0.80 }, { 'slurtleslime', 0.80 }, { 'armorsnurtleshell', 0.80 } },
     }
 
     for prefab, loot in pairs(changeloot) do
@@ -522,6 +665,61 @@ for boss, _ in pairs(bosses) do
     end)
 end
 
+-- Trinket gnomes
+local gnomeprefabs = { "trinket_4", "trinket_13" }
+
+for _, prefab in ipairs(gnomeprefabs) do
+    AddPrefabPostInit(prefab, function(inst)
+        inst:DoTaskInTime(0, function()
+            if not inst or not inst:IsValid() then return end
+            local TALK_LP = "summerevent/characters/crowkid/neutral"
+            local function ontalk(inst)
+                if inst.localsounds == nil then return end
+                inst.localsounds.SoundEmitter:KillSound("talk")
+                inst.localsounds.SoundEmitter:PlaySound(TALK_LP or "dontstarve/characters/woodie/lucytalk_LP", "talk")
+            end
+
+            local function ondonetalking(inst)
+                if inst.localsounds ~= nil then inst.localsounds.SoundEmitter:KillSound("talk") end
+            end
+
+            if not GLOBAL.TheNet:IsDedicated() then
+                inst.localsounds = GLOBAL.CreateEntity()
+                inst.localsounds:AddTag("FX")
+                inst.localsounds.entity:AddTransform()
+                inst.localsounds.entity:AddSoundEmitter()
+                inst.localsounds.entity:SetParent(inst.entity)
+                inst.localsounds:Hide()
+                inst.localsounds.persists = false
+                inst:ListenForEvent("ontalk", ontalk)
+                inst:ListenForEvent("donetalking", ondonetalking)
+            end
+
+            if inst.components.talker == nil then inst:AddComponent("talker") end
+
+            inst.components.talker.fontsize = 32
+            inst.components.talker.font = GLOBAL.TALKINGFONT
+            inst.components.talker.colour = GLOBAL.Vector3(.9, .3, .3)
+            inst.components.talker.offset = GLOBAL.Vector3(0, 0, 0)
+            inst.components.talker.symbol = "swap_object"
+
+            inst:DoPeriodicTask(48, function()
+                if not inst or not inst:IsValid() then return end
+                local dice = math.random(0, 1)
+                if dice == 0 then
+                    local owner = inst.components.inventoryitem ~= nil and inst.components.inventoryitem.owner or nil
+                    local equipped = inst.components.equippable ~= nil and inst.components.equippable:IsEquipped()
+                    if not equipped then
+                        local gnomequotes = config.gnomequotes
+                        local quote = gnomequotes[math.random(#gnomequotes)]
+                        if quote ~= nil and inst.components.talker ~= nil then inst.components.talker:Say(quote) end
+                    end
+                end
+            end)
+        end)
+    end)
+end
+
 -- New recipes
 env.AddRecipe2("piggyback", { GLOBAL.Ingredient("pigskin", 6), GLOBAL.Ingredient("silk", 6), GLOBAL.Ingredient("rope", 4) }, GLOBAL.TECH.SCIENCE_TWO)
 env.AddRecipe2("compass", { GLOBAL.Ingredient("goldnugget", 1), GLOBAL.Ingredient("marble", 1) }, GLOBAL.TECH.SCIENCE_TWO)
@@ -539,15 +737,9 @@ TUNING.WONKEY_WALK_SPEED_PENALTY = 1.1
 TUNING.WONKEY_SPEED_BONUS = 2.5
 TUNING.WONKEY_TIME_TO_RUN = 2
 TUNING.WONKEY_RUN_HUNGER_RATE_MULT = 1.1
-TUNING.SHADOW_PILLAR_DURATION = 12
-TUNING.SHADOW_PILLAR_DURATION_BOSS = 6
-TUNING.SHADOW_PILLAR_DURATION_PLAYER = 3
-TUNING.WILLOW_EMBER_THROW = 1
-TUNING.WILLOW_EMBER_BURST = 3
-TUNING.WILLOW_EMBER_BALL = 2
-TUNING.WILLOW_EMBER_FRENZY = 2
-TUNING.WILLOW_EMBER_LUNAR = 4
-TUNING.WILLOW_EMBER_SHADOW = 4
+--TUNING.SHADOW_PILLAR_DURATION = 12
+--TUNING.SHADOW_PILLAR_DURATION_BOSS = 6
+--TUNING.SHADOW_PILLAR_DURATION_PLAYER = 3
 
 TUNING.BEEFALO_HUNGER_RATE = TUNING.BEEFALO_HUNGER_RATE * 0.8
 TUNING.BEEFALO_DOMESTICATION_ATTACKED_BY_PLAYER_DOMESTICATION = 0
@@ -560,7 +752,7 @@ TUNING.BEEFALO_DOMESTICATION_BRUSHED_DOMESTICATION = TUNING.BEEFALO_DOMESTICATIO
 TUNING.OCEANTREE_STAGES_TO_SUPERTALL = 2
 TUNING.MAX_FIRE_DAMAGE_PER_SECOND = 160
 
-TUNING.GRUEDAMAGE = 999
+TUNING.GRUEDAMAGE = 9999
 TUNING.WALRUS_REGEN_PERIOD = TUNING.WALRUS_REGEN_PERIOD * 0.5
 TUNING.CRAWLINGHORROR_HEALTH = 400
 TUNING.CRAWLINGHORROR_DAMAGE = 40
@@ -599,14 +791,12 @@ TUNING.BEEQUEEN_ATTACK_RANGE = 5
 TUNING.BEEQUEEN_HIT_RANGE = 5
 TUNING.BEEQUEEN_SPAWNGUARDS_CD = { 28, 26, 24, 22 }
 TUNING.BEEQUEEN_FOCUSTARGET_CD = { 120, 60, 32, 24 }
-TUNING.DEERCLOPS_ATTACKS_PER_SEASON = 6
-TUNING.NO_BOSS_TIME = 0
+TUNING.NO_BOSS_TIME = 16
 
 TUNING.HEATROCK_NUMUSES = TUNING.HEATROCK_NUMUSES * 3
-TUNING.HEAT_ROCK_CARRIED_BONUS_HEAT_FACTOR = 0.8
+TUNING.HEAT_ROCK_CARRIED_BONUS_HEAT_FACTOR = 0.7
 TUNING.EFFIGY_HEALTH_PENALTY = 0
 TUNING.PIGGYBACK_SPEED_MULT = 1
-TUNING.COMPASS_FUEL = 3000
 
 TUNING.BUILD_DISTANCE = 0.6
 

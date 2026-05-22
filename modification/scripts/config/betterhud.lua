@@ -33,7 +33,7 @@ return {
         },
         {
             title = "Guia: Sobreviventes",
-            description = "Mas sobre nossos Sobreviventes...\nEles foram alterados também. Será\npossível deixá-los consistentes?\n \n1) Wes trabalha e dá dano normal.\n2) Wonkey não desacelera andando.\n3) Wigfrid causa dano de COMBOS!\n⬆ E seus Beefalos recebem buffs.\n4) A Prisão do Maxwell dura menos\n5) Walter cai de Beefalos também.\n6) Reviver 'SEMPRE' causa debuff.\n⬆ Menos Meat Effigy e Touch Stone"
+            description = "Mas sobre nossos Sobreviventes...\nEles foram alterados também. Será\npossível deixá-los consistentes?\n \n1) Wes trabalha e dá dano normal.\n2) Wonkey não desacelera andando.\n3) Wigfrid causa dano de COMBOS!\n⬆ E seus Beefalos recebem buffs.\n4) Willow não queima aliados...\n⬆ Seu 'fogo gentil' não machuca!\n⬆ As habilidades também queimam.\n⬆ Matar traz centelhas à Willow.\n5) Walter cai de Beefalos também.\n6) Reviver 'SEMPRE' causa debuff.\n⬆ Menos Meat Effigy e Touch Stone"
         },
         {
             title = "Guia: Griefers",

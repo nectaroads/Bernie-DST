@@ -15,9 +15,10 @@ local function ConsumeBurntItem(prefab)
     if burntitems[prefab] <= 0 then burntitems[prefab] = nil end
 end
 
-local ASH_RESTORE_VALUE = 3
+local ASH_RESTORE_VALUE = 2
 
 local function ConvertAshes(inst, container)
+    local ignoredprefabs = { stinger = true }
     if container == nil or container.slots == nil then return end
     local ash_slots = {}
     for k, item in pairs(container.slots) do
@@ -26,14 +27,18 @@ local function ConvertAshes(inst, container)
     local wasconsumed = false
     for _, data in ipairs(ash_slots) do
         local ash = data.ash
-        while ash ~= nil
-            and ash:IsValid()
-            and ash.components.stackable ~= nil
-            and ash.components.stackable:StackSize() > 0
+        while ash ~= nil and ash:IsValid() and ash.components.stackable ~= nil and ash.components.stackable:StackSize() > 0
         do
             local restored_this_ash = 0
             for i = 1, ASH_RESTORE_VALUE do
-                local prefab = GetFirstBurntItem()
+                local item = GetFirstBurntItem()
+
+                while item ~= nil and (ignoredprefabs[item.prefab] or item.components.equippable ~= nil or item.components.perishable ~= nil or item.components.health ~= nil) do
+                    ConsumeBurntItem(item.prefab)
+                    item = GetFirstBurntItem()
+                end
+
+                local prefab = item.prefab
                 if prefab == nil then break end
                 local item = GLOBAL.SpawnPrefab(prefab)
                 if item ~= nil then

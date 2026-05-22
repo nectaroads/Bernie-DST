@@ -1,6 +1,9 @@
 require('dotenv').config();
 const dotenv = process.env;
 
-let messagesbuffer = [];
+const messagebuffer = {
+  lastcall: 0,
+  buffer: []
+};
 
-module.exports = { dotenv, messagesbuffer }
+module.exports = { dotenv, messagebuffer };

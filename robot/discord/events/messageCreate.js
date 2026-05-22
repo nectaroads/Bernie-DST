@@ -1,5 +1,5 @@
 const { chathistory } = require('../../grok');
-const { dotenv, messagesbuffer } = require('../../variables');
+const { dotenv, messagebuffer } = require('../../variables');
 
 const MAX_DST_MESSAGE_LENGTH = 140;
 
@@ -54,7 +54,7 @@ module.exports = async (client, message) => {
   };
 
   const messageData = { key: 'bernie_rpc_client_message', rpc: 'bernie_rpc_client_message', type: 'discord', message: truncatedMessage, name: message.member?.displayName || message.author.username, colour: colour };
-  messagesbuffer.push(messageData);
+  messagebuffer.buffer.push(messageData);
   chathistory.push(messageData);
 
   while (chathistory.length > 5) {

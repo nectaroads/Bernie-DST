@@ -1,10 +1,13 @@
-const { messagesbuffer } = require('../../variables');
+const { r, messagebuffer } = require('../../variables');
 
 module.exports = async (req, res) => {
   let data = [];
-  if (messagesbuffer.length > 0) {
-    data = [...messagesbuffer].reverse();
-    messagesbuffer.splice(0, data.length);
+  const now = Date.now();
+  if (now - messagebuffer.lastcall > 3000) messagebuffer.buffer.length = 0;
+  if (messagebuffer.buffer.length > 0) {
+    data = [...messagebuffer.buffer].reverse();
+    messagebuffer.buffer.splice(0, data.length);
   }
+  messagebuffer.lastcall = now;
   return res.json(data);
 };
