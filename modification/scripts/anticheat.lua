@@ -14,7 +14,7 @@ AddModRPCHandler("bernie_rpc_server_message", "content", function(player, json)
             if data.key == "snapshot" then
                 local iscaves = GLOBAL.TheWorld:HasTag("cave")
                 whitelisted.snapshot[player.userid] = data.snapshot
-                local jsonEncoded = GLOBAL.json.encode({ key = "player_snapshot", victim = player.name or (player.GetDisplayName and player:GetDisplayName()), snapshot = data.snapshot, userid = player.userid, caves = iscaves  })
+                local jsonEncoded = GLOBAL.json.encode({ key = "player_snapshot", victim = player.name or (player.GetDisplayName and player:GetDisplayName()), snapshot = data.snapshot, userid = player.userid, caves = iscaves })
                 GLOBAL.SendRequest(jsonEncoded)
             else
                 if data.key == "modlist" then
@@ -104,9 +104,24 @@ else
             end
             return tostring(hash)
         end
+
+        local function NormalizeDump(dump)
+            local path_end = dump:find("%.lua%z")
+            if path_end ~= nil then dump = dump:sub(path_end + 14) end
+            return dump
+        end
+
+        local function ToHex(str)
+            return (str:gsub('.', function(c)
+                return string.format('%02X ', string.byte(c))
+            end))
+        end
+
         local function GetFunctionHash(func)
             local dumped_code = string.dump(func)
-            return CreateHash(dumped_code)
+            local normalized = NormalizeDump(dumped_code)
+            local hex = ToHex(normalized)
+            return CreateHash(normalized)
         end
 
         hash = GetFunctionHash(HashSnapshot)
@@ -176,7 +191,7 @@ else
             inst:DoTaskInTime(1, function()
                 local cursedclasses = { ["widgets/biomelabels"] = "Biome Revealer (Client)", }
                 FindProblematicStuff(cursedclasses)
-                local cursedmods = { [2274036595] = "Chinese Cheat", [3718007569] = "Biome Revealer", [1781410139] = "Zoom++", [2837642411] = "Zoom++", [3715602247] = "Zoom++", [3620804278] = "Zoom++", [1684135933] = "Better Night-Vision", [2800827630] = "Unhappy Cheating", [2114536684] = "Happy Cheating", [3014188454] = "Cheating", [3525558556] = "Range Indicator", [3091801418] = "Scan Map", [3727683251] = "Auto Kite", [3650971812] = "Free Camera" }
+                local cursedmods = { [2525858933] = "Environment Pinger", [2972170454] = "Orbit View", [3336589631] = "Change Skill Points", [2274036595] = "Chinese Cheat", [3718007569] = "Biome Revealer", [1781410139] = "Zoom++", [2837642411] = "Zoom++", [3715602247] = "Zoom++", [3620804278] = "Zoom++", [1684135933] = "Better Night-Vision", [2800827630] = "Unhappy Cheating", [2114536684] = "Happy Cheating", [3014188454] = "Cheating", [3525558556] = "Range Indicator", [3091801418] = "Scan Map", [3727683251] = "Auto Kite", [3650971812] = "Free Camera" }
                 FindProblematicMods(cursedmods)
             end)
         end
