@@ -51,7 +51,7 @@ end
 
 AddPrefabPostInit("world", function(inst)
     if GLOBAL.TheWorld:HasTag("cave") then return end
-    inst:DoPeriodicTask(0.5, function()
+    inst:DoPeriodicTask(1, function()
         SendUpdateRequest()
     end)
 end)

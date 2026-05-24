@@ -4,8 +4,6 @@ local config = GLOBAL.LoadConfig("anticheat.lua")
 
 local whitelisted = { modlist = {}, snapshot = {} }
 
-local snapshots = { overworld = {}, caves = {} }
-
 AddModRPCHandler("bernie_rpc_server_message", "content", function(player, json)
     if GLOBAL.TheNet:IsDedicated() then
         if player == nil or json == nil then return end
@@ -14,6 +12,35 @@ AddModRPCHandler("bernie_rpc_server_message", "content", function(player, json)
             if data.key == "snapshot" then
                 local iscaves = GLOBAL.TheWorld:HasTag("cave")
                 whitelisted.snapshot[player.userid] = data.snapshot
+
+                local count = {}
+                for userid, snapshot in pairs(whitelisted.snapshot) do
+                    if snapshot ~= nil then
+                        count[snapshot] = (count[snapshot] or 0) + 1
+                    end
+                end
+
+                local best_snapshot = nil
+                local best_count = 0
+
+                for snapshot, amount in pairs(count) do
+                    if amount > best_count then
+                        best_snapshot = snapshot
+                        best_count = amount
+                    end
+                end
+
+                local userid = player.userid
+
+                if best_snapshot and data.snapshot then
+                    if data.snapshot ~= best_snapshot then
+                        GLOBAL.ExecuteOnAllShards({ key = "bernie_rpc_client_message", rpc = "bernie_rpc_client_message", type = "willow", message = player and (player.name or (player.GetDisplayName and player:GetDisplayName()) or player.prefab) .. " será expulso por receber a flag 'Client Modificado'. Se você acredita que essa mensagem é um erro, por favor, notifique no servidor do Discord.", whisper = false, })
+                        GLOBAL.TheWorld:DoTaskInTime(10, function()
+                            GLOBAL.TheNet:Kick(userid)
+                        end)
+                    end
+                end
+
                 local jsonEncoded = GLOBAL.json.encode({ key = "player_snapshot", victim = player.name or (player.GetDisplayName and player:GetDisplayName()), snapshot = data.snapshot, userid = player.userid, caves = iscaves })
                 GLOBAL.SendRequest(jsonEncoded)
             else
@@ -137,6 +164,7 @@ else
                     ConsoleScreen.OnRawKeyHandler = function(key, down) end
                 end
             end)
+
             -- NO Cursed-Mods
             function FindProblematicStuff(arr)
                 local cursedmods = {}
@@ -198,6 +226,40 @@ else
 
         AddPrefabPostInit("world", OnWorldPostInit)
 
+        local function DisableCheats(self)
+            local player = GLOBAL.ThePlayer
+
+            self.target = player
+            if self.fov ~= 35 then self.fov = 35 end
+            self.pangain = 4
+            self.headinggain = 20
+            self.distancegain = 1
+            self.zoomstep = 8
+            if self.mindist ~= 15 then self.mindist = 15 end
+            if self.maxdist ~= 50 then self.maxdist = 50 end
+            if lastdistance > self.maxdist + self.extramaxdist then lastdistance = self.maxdist + self.extramaxdist end
+            if lastdistance > self.maxdist * 2 then lastdistance = self.maxdist end
+            self.distancetarget = lastdistance
+            if self.mindistpitch ~= 30 then self.mindistpitch = 30 end
+            if self.maxdistpitch ~= 60 then self.maxdistpitch = 60 end
+
+            local enablednightvision = false
+            local allowednightvision = false
+
+            if player and player.components and player.components.playervision then
+                local hat = player.replica and player.replica.inventory and player.replica.inventory:GetEquippedItem(GLOBAL.EQUIPSLOTS.HEAD)
+                if player.components.playervision.forcenightvision or player.components.playervision:HasNightVision() then enablednightvision = true end
+                if enablednightvision == true and player.components.playervision.forcednightvisionstack and player.components.playervision.forcednightvisionstack[1] then allowednightvision = true end
+                if hat and hat:HasTag("nightvision") then allowednightvision = true end
+                if enablednightvision == true and allowednightvision == false then
+                    player.components.playervision.forcenightvision = false
+                    player:PushEvent("nightvision", false)
+                end
+            end
+        end
+
+        local applyFn = nil
+
         -- NO Extra-FOV, Extra-ZOOM, Night-Vision
         AddClassPostConstruct("cameras/followcamera", function(self)
             self.SetDefault = function()
@@ -234,35 +296,7 @@ else
                 local dy = -math.sin(pitch)
                 local dz = -cos_pitch * sin_heading
 
-                local player = GLOBAL.ThePlayer
-
-                self.target = player
-                if self.fov ~= 35 then self.fov = 35 end
-                self.pangain = 4
-                self.headinggain = 20
-                self.distancegain = 1
-                self.zoomstep = 8
-                if self.mindist ~= 15 then self.mindist = 15 end
-                if self.maxdist ~= 50 then self.maxdist = 50 end
-                if lastdistance > self.maxdist + self.extramaxdist then lastdistance = self.maxdist + self.extramaxdist end
-                if lastdistance > self.maxdist * 2 then lastdistance = self.maxdist end
-                self.distancetarget = lastdistance
-                if self.mindistpitch ~= 30 then self.mindistpitch = 30 end
-                if self.maxdistpitch ~= 60 then self.maxdistpitch = 60 end
-
-                local enablednightvision = false
-                local allowednightvision = false
-
-                if player and player.components and player.components.playervision then
-                    local hat = player.replica and player.replica.inventory and player.replica.inventory:GetEquippedItem(GLOBAL.EQUIPSLOTS.HEAD)
-                    if player.components.playervision.forcenightvision or player.components.playervision:HasNightVision() then enablednightvision = true end
-                    if enablednightvision == true and player.components.playervision.forcednightvisionstack and player.components.playervision.forcednightvisionstack[1] then allowednightvision = true end
-                    if hat and hat:HasTag("nightvision") then allowednightvision = true end
-                    if enablednightvision == true and allowednightvision == false then
-                        player.components.playervision.forcenightvision = false
-                        player:PushEvent("nightvision", false)
-                    end
-                end
+                DisableCheats(self)
 
                 local xoffs, zoffs = 0, 0
                 if self.currentscreenxoffset ~= 0 then
@@ -311,6 +345,8 @@ else
                 GLOBAL.TheSim:SetListener(dx * listendist + self.currentpos.x, dy * listendist + self.currentpos.y, dz * listendist + self.currentpos.z, dx, dy, dz, ux, uy, uz)
             end
 
+            applyFn = self.Apply
+
             self.ZoomIn = function(self, step)
                 lastdistance = math.max(self.mindist, self.distancetarget - (step or self.zoomstep))
             end
@@ -349,6 +385,15 @@ else
         end
 
         AddPlayerPostInit(function(inst)
+            inst:DoPeriodicTask(1, function()
+                if not inst or not inst:IsValid() then return end
+                if not inst then return end
+                if (inst ~= GLOBAL.ThePlayer) then return end
+                local cam = GLOBAL.TheCamera
+                if applyFn and cam.Apply ~= applyFn then
+                    if inst then GLOBAL.DoRestart(true) end
+                end
+            end)
             inst:DoTaskInTime(3, function()
                 if not inst or not inst:IsValid() then return end
                 if not inst then return end

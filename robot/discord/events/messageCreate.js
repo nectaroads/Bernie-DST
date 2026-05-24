@@ -4,7 +4,7 @@ const { dotenv, messagebuffer } = require('../../variables');
 const MAX_DST_MESSAGE_LENGTH = 140;
 
 module.exports = async (client, message) => {
-  if (message.author?.bot || !message.content || message.channel.id !== dotenv.CHATROOM) return;
+  if (message.author.id === client.user.id || !message.content || message.channel.id !== dotenv.CHATROOM) return;
 
   let truncatedMessage = message.content.length > MAX_DST_MESSAGE_LENGTH ? message.content.substring(0, MAX_DST_MESSAGE_LENGTH - 5) + '(...)' : message.content;
 

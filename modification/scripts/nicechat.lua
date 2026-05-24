@@ -11,12 +11,12 @@ end
 local flairProfiles = {
     ashley = { name = "Ashley", colour = { 0.173, 0.463, 0.604, 1 }, flair = "profileflair_ashley" },
     bernie = { name = "Bernie", colour = { 0.502, 0.349, 0.235, 1 }, flair = "profileflair_bernie" },
-    willow = { name = "Willow", colour = { 0.612, 0.188, 0.212, 1 }, flair = "profileflair_willow" },
+    willow = { name = "Willow", colour = { 0.662, 0.238, 0.262, 1 }, flair = "profileflair_willow" },
     global = { name = "Global", colour = { 0.278, 0.651, 0.451, 1 }, flair = "profileflair_global" },
     private = { name = "Private", colour = { 0.447, 0.463, 0.529, 1 }, flair = "profileflair_private" },
     discord = { name = "Discord", colour = { 0.549, 0.596, 0.855, 1 }, flair = "profileflair_discord" },
     staff = { name = "Staff", colour = { 0.8706, 0.5725, 0.3843, 1 }, flair = "profileflair_staffdiscord" },
-    server = { name = "Server", colour = { 0.298, 0.251, 0.263, 1 }, flair = "profileflair_server" },
+    server = { name = "Server", colour = { 0.398, 0.351, 0.363, 1 }, flair = "profileflair_server" },
     alert = { name = "Alert", colour = { 0.85, 0.55, 0.26, 1 }, flair = "profileflair_alert" },
 }
 
@@ -58,7 +58,7 @@ local function NormalizeColour(colour)
 end
 
 GLOBAL.ShowCustomMessage = function(value)
-    if not GLOBAL.ThePlayer then return end
+    if not GLOBAL.ChatHistory then return end
 
     local profile = value.profile or flairProfiles[value.type] or {}
     local name = value.name or "" --profile.name
@@ -108,7 +108,6 @@ local function DecodeRPCData(payload)
 end
 
 function HandleClientChatMessage(payload)
-    if not GLOBAL.TheWorld then return end
     local data = DecodeRPCData(payload)
     if not data then return end
     if data.event and clienteventhandler[data.event] then clienteventhandler[data.event](data) end

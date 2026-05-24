@@ -14,47 +14,6 @@ local function WorldHasTile(tile)
     return false
 end
 
--- Weird run
-local G = GLOBAL
-local State = G.State
-local TimeEvent = G.TimeEvent
-local FRAMES = G.FRAMES
-
-local function AddWeirdMonkeyRun(sgname)
-    AddStategraphState(sgname, State {
-        name = "weird_run_monkey",
-        tags = { "moving", "running", "canrotate", "monkey" },
-
-        onenter = function(inst)
-            if inst.components.locomotor ~= nil then inst.components.locomotor:RunForward() end
-            inst.Transform:SetSixFaced()
-            if not inst.AnimState:IsCurrentAnimation("run_monkey_loop") then inst.AnimState:PlayAnimation("run_monkey_loop", true) end
-            inst.sg:SetTimeout(2)
-        end,
-
-        timeline =
-        {
-            TimeEvent(4 * FRAMES, function(inst) if inst.SoundEmitter ~= nil then inst.SoundEmitter:PlaySound("dontstarve/movement/run_dirt") end end),
-            TimeEvent(10 * FRAMES, function(inst) if inst.SoundEmitter ~= nil then inst.SoundEmitter:PlaySound("dontstarve/movement/run_dirt") end end),
-        },
-
-        onupdate = function(inst)
-            if inst.components.locomotor ~= nil then inst.components.locomotor:RunForward() end
-        end,
-
-        ontimeout = function(inst)
-            inst.sg:GoToState("weird_run_monkey")
-        end,
-
-        onexit = function(inst)
-            inst.Transform:SetFourFaced()
-        end,
-    })
-end
-
-AddWeirdMonkeyRun("wilson")
-AddWeirdMonkeyRun("wilson_client")
-
 -- Oceantree Stuff
 local OCEANTREE_PILLAR_CANOPY_MULT = 1.5
 

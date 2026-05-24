@@ -1,7 +1,7 @@
 name = "Bernie Server-Manager"
 description = "The ultimate server-tool."
 author = "peuloom"
-version = "1.5.3.1"
+version = "1.5.3.3.7"
 forumthread = "WIP"
 api_version = 10
 icon_atlas = "modicon.xml"

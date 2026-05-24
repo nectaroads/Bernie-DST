@@ -33,7 +33,7 @@ local function ConvertAshes(inst, container)
             for i = 1, ASH_RESTORE_VALUE do
                 local item = GetFirstBurntItem()
 
-                while item ~= nil and (ignoredprefabs[item.prefab] or item.components.equippable ~= nil or item.components.perishable ~= nil or item.components.health ~= nil) do
+                while item and item.components and (ignoredprefabs[item.prefab] or item.components.equippable ~= nil or item.components.perishable ~= nil or item.components.health ~= nil) do
                     ConsumeBurntItem(item.prefab)
                     item = GetFirstBurntItem()
                 end

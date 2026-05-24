@@ -31,12 +31,12 @@ module.exports = async (req, res) => {
   const hasDominantSnapshot = mostrecurrentcount > secondcount;
   const knownSnapshots = entries.map(([snap, count]) => `> ${snap}: ${count}`).join('\n');
 
-  if (hasDominantSnapshot && snapshot !== mostrecurrentsnapshot) {
+  /*if (hasDominantSnapshot && snapshot !== mostrecurrentsnapshot) {
     messagebuffer.buffer.push({ key: 'bernie_rpc_client_message', rpc: 'bernie_rpc_client_message', type: 'willow', message: `${victim} será expulso em breve. O usuário recebeu flag "Cliente Modificado" e está sujeito a banimento. Se acredita que essa notificação é um erro, por favor, compartilhe no Discord.` });
     setTimeout(() => {
       messagebuffer.buffer.push({ key: 'kick', target: userid });
     }, 10000);
-  }
+  }*/
 
   await channel.send(`***${worldmap}-Snapshot: ${victim} | ${snapshot}***\n> ***Known Snapshots:***\n${knownSnapshots}`);
 

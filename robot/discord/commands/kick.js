@@ -1,5 +1,6 @@
 const { SlashCommandBuilder } = require('discord.js');
 const { buildEmbed, validateStaff } = require('../../discord');
+const { print } = require('../../tools');
 
 module.exports = {
   data: new SlashCommandBuilder()

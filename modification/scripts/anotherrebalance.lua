@@ -202,6 +202,28 @@ if GLOBAL.TheNet:IsDedicated() then
         return _SpawnEmberAt(x, y, z, victim, marksource)
     end
 
+    AddPrefabPostInit("willow_ember", function(inst)
+        inst:ListenForEvent("onputininventory", function(inst, data)
+            local owner = inst.components.inventoryitem ~= nil and inst.components.inventoryitem.owner or nil
+            if owner == nil then return end
+            local smallest = nil
+            local count = 0
+            for _, item in pairs(owner.components.inventory.itemslots) do
+                if item ~= nil and item.prefab == "willow_ember" then
+                    count = count + 1
+                    if smallest == nil then
+                        smallest = item
+                    else
+                        local itemsize = item.components.stackable ~= nil and item.components.stackable:StackSize() or 1
+                        local smallestsize = smallest.components.stackable ~= nil and smallest.components.stackable:StackSize() or 1
+                        if itemsize < smallestsize then smallest = item end
+                    end
+                end
+            end
+            if count > 1 and smallest ~= nil then owner.components.inventory:DropItem(smallest, true, true) end
+        end)
+    end)
+
     -- Dragonfly never gets stunned
     AddStategraphPostInit("dragonfly", function(sg)
         sg.events.stunned = EventHandler("stunned", function(inst)
@@ -225,6 +247,13 @@ if GLOBAL.TheNet:IsDedicated() then
                 damage = damage * 0.1
             end
 
+            if attacker and (attacker:HasTag("shadowcreature") or attacker:HasTag("shadow_aligned")) then
+                -- Wolf is weaker against shadow creatures
+                if inst and inst.prefab == "wolfgang" then
+                    damage = damage * 1.25
+                end
+            end
+
             -- if it's Willow's skill, burn
             local willowskills = { willow_shadow_flame = true, flamethrower_fx = true }
             local iswillowskill = (weapon and willowskills[weapon.prefab]) or nil
@@ -235,21 +264,17 @@ if GLOBAL.TheNet:IsDedicated() then
                 end
             end
 
-            -- Wigfrig Beefalos have her passive
-            if attacker and attacker.prefab == "beefalo" then
-                local rider = attacker and attacker.components.rideable and attacker.components.rideable:GetRider()
-                if rider and rider:IsValid() then
-                    if rider.prefab == "wathgrithr" then
-                        damage = damage * 1.25
-                    end
-                end
+            local rider = damage and damage > 0 and attacker and attacker.components.rideable and attacker.components.rideable:GetRider()
+
+            if rider then
+                print("rider found")
+                print("rider prefab " .. rider.prefab)
             end
 
             -- If a boss is being attacked
             if inst:HasTag("epic") then
                 -- Alone players are stronger against bosses
-                local rider = attacker and attacker.components.rideable and attacker.components.rideable:GetRider()
-                if rider and damage and damage > 0 then
+                if rider then
                     if not bossdamagehistory[inst.GUID] then bossdamagehistory[inst.GUID] = {} end
                     if not bossdamagehistory[inst.GUID][rider.GUID] then
                         bossdamagehistory[inst.GUID][rider.GUID] = true
@@ -315,14 +340,19 @@ if GLOBAL.TheNet:IsDedicated() then
 
                 if attacker and attacker.prefab == "wathgrithr" then
                     if not wigfridcombos[attacker.GUID] then wigfridcombos[attacker.GUID] = 0 end
-                    wigfridcombos[attacker.GUID] = wigfridcombos[attacker.GUID] + 1
+                    wigfridcombos[attacker.GUID] = wigfridcombos[attacker.GUID] + 0.5
                     if wigfridcombos[attacker.GUID] > 20 then wigfridcombos[attacker.GUID] = 20 end
+
+                    local mount = nil
+                    if attacker.components.rider ~= nil then mount = attacker.components.rider:GetMount() end
+                    if mount then damage = damage * 1.1 end
+
                     damage = damage + wigfridcombos[attacker.GUID]
                 else
                     if attacker and attacker.components and attacker.components.rideable ~= nil and attacker.components.rideable.rider ~= nil and attacker.components.rideable.rider.prefab == "wathgrithr" then
                         damage = damage * 1.25
                         if not wigfridcombos[attacker.components.rideable.rider.GUID] then wigfridcombos[attacker.components.rideable.rider.GUID] = 0 end
-                        wigfridcombos[attacker.components.rideable.rider.GUID] = wigfridcombos[attacker.components.rideable.rider.GUID] + 1
+                        wigfridcombos[attacker.components.rideable.rider.GUID] = wigfridcombos[attacker.components.rideable.rider.GUID] + 0.5
                         if wigfridcombos[attacker.components.rideable.rider.GUID] > 20 then wigfridcombos[attacker.components.rideable.rider.GUID] = 20 end
                         damage = damage + wigfridcombos[attacker.components.rideable.rider.GUID]
                     end
@@ -458,7 +488,11 @@ if GLOBAL.TheNet:IsDedicated() then
             local enemy = SpawnNear(inst, event.spawnenemy, 5)
             if enemy and enemy.components.combat then enemy.components.combat:SetTarget(inst) end
         end
-        if event.state and inst.sg then inst.sg:GoToState(event.state) end
+        if event.state and inst.sg then
+            if inst.sg and (inst.components.rider == nil or not inst.components.rider:IsRiding()) then
+                inst.sg:GoToState(event.state)
+            end
+        end
         if event.give then GiveItem(inst, event.give) end
         if event.drop then DropFirstItem(inst) end
         if event.teleport then TeleportNearby(inst) end
@@ -470,7 +504,7 @@ if GLOBAL.TheNet:IsDedicated() then
             local x, y, z = inst.Transform:GetWorldPosition()
             local effect = GLOBAL.SpawnPrefab("woby_dash_shadow_fx")
             effect.Transform:SetPosition(x, y, z)
-            inst.AnimState:SetScale(-1, -1, -1)
+            inst.AnimState:SetScale(-0.9, -1.1, -1.1)
             inst:DoTaskInTime(10, function()
                 if inst:IsValid() then inst.AnimState:SetScale(1, 1, 1) end
             end)
@@ -513,7 +547,9 @@ if GLOBAL.TheNet:IsDedicated() then
                 end
             end)
 
-            if inst.components.maprevealable ~= nil then inst.components.maprevealable:AddRevealSource(inst, "compassbearer") end
+            inst:DoTaskInTime(0, function()
+                if inst and inst.userid and inst.components.maprevealable then inst.components.maprevealable:AddRevealSource(inst, "compassbearer") end
+            end)
         end)
     end)
 
@@ -736,6 +772,13 @@ TUNING.WONKEY_WALK_SPEED_PENALTY = 1.1
 TUNING.WONKEY_SPEED_BONUS = 2.5
 TUNING.WONKEY_TIME_TO_RUN = 2
 TUNING.WONKEY_RUN_HUNGER_RATE_MULT = 1.1
+TUNING.WILLOW_LUNAR_FIRE_COOLDOWN = 20
+TUNING.WILLOW_LUNAR_FIRE_DAMAGE = 12
+TUNING.WILLOW_LUNAR_FIRE_PLANAR_DAMAGE = 24
+TUNING.WX78_MIN_MOISTURE_DAMAGE = -1
+TUNING.WX78_MOVESPEED_CHIPBOOSTS = { 0.00, 0.10, 0.20, 0.30 }
+TUNING.WOLFGANG_SANITY_NIGHT_DRAIN = 1.5
+TUNING.WOLFGANG_SANITY_NIGHT_DRAIN_SMALL = 1.25
 --TUNING.SHADOW_PILLAR_DURATION = 12
 --TUNING.SHADOW_PILLAR_DURATION_BOSS = 6
 --TUNING.SHADOW_PILLAR_DURATION_PLAYER = 3
@@ -753,9 +796,10 @@ TUNING.MAX_FIRE_DAMAGE_PER_SECOND = 160
 
 TUNING.GRUEDAMAGE = 9999
 TUNING.WALRUS_REGEN_PERIOD = TUNING.WALRUS_REGEN_PERIOD * 0.5
-TUNING.CRAWLINGHORROR_HEALTH = 400
-TUNING.CRAWLINGHORROR_DAMAGE = 40
-TUNING.CRAWLINGHORROR_ATTACK_PERIOD = 2
+TUNING.CRAWLINGHORROR_HEALTH = 500
+TUNING.CRAWLINGHORROR_DAMAGE = 60
+TUNING.CRAWLINGHORROR_ATTACK_PERIOD = 1.5
+TUNING.TERRORBEAK_SPEED = 9
 TUNING.BEEGUARD_HEALTH = 140
 TUNING.BEEGUARD_DASH_SPEED = 7
 TUNING.BEEGUARD_SPEED = 4
