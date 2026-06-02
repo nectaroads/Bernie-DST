@@ -62,6 +62,21 @@ AddPrefabPostInitAny(function(inst)
         if inst.components.equippable == nil then inst:AddComponent("equippable") end
         inst.components.equippable.equipslot = GLOBAL.EQUIPSLOTS.TRINKET
     end
+    if inst.components.edible ~= nil and not inst.adjusted then
+        inst.adjusted = true
+        if inst:HasTag("preparedfood") or inst:HasTag("driedfood") then
+            if inst.components.perishable ~= nil then
+                inst.components.perishable:SetPerishTime(
+                    inst.components.perishable.perishtime * 1.2
+                )
+            end
+        else
+            local edible = inst.components.edible
+            edible.healthvalue = edible.healthvalue * 0.8
+            edible.hungervalue = edible.hungervalue * 0.8
+            edible.sanityvalue = edible.sanityvalue * 0.8
+        end
+    end
 end)
 
 -- Compass HUD
@@ -85,7 +100,7 @@ end)
 
 local wigfridcombos = {}
 
-local bosses = { leif_sparse = { name = "Sparse Treeguard", blacklist = {} }, leif = { name = "Treeguard", blacklist = {} }, spiderqueen = { name = "Grand Spider Queen", blacklist = { spider = true, spider_warrior = true, spider_water = true, spider_dropper = true, spider_healer = true, spider_spitter = true, spider_moon = true, spider_hider = true } }, alterguardian_phase1_lunarrift = { name = "Celestial Revenant", blacklist = {} }, alterguardian_phase4_lunarrift = { name = "Celestial Scion", blacklist = {} }, wagboss_robot = { name = "W.A.R.B.O.T", blacklist = {} }, mock_dragonfly = { name = "Wilting Dragonfly", blacklist = {} }, mothergoose = { name = "The Mother Goose", blacklist = {} }, moonmaw_dragonfly = { name = "Moonmaw Dragonfly", blacklist = {} }, hoodedwidow = { name = "The Hooded Widow", blacklist = {} }, eyeofterror = { name = "The Eye of Terror", blacklist = {} }, dragonfly = { name = "Mother Dragonfly", blacklist = {} }, moose = { name = "The Moose/Goose", blacklist = {} }, bearger = { name = "Dormant Bearger", blacklist = {} }, mutatedbearger = { name = "Armored Bearger", blacklist = {} }, enraged_klaus = { name = "Vengeful Klaus ⚠", blacklist = {} }, mutateddeerclops = { name = "Crystal Deerclops", blacklist = {} }, twinofterror2 = { name = "Hungry Spazmatism", blacklist = {} }, antlion = { name = "Desert Antlion", blacklist = {} }, toadstool_dark = { name = "Misery Toadstool ⚠", blacklist = {} }, enraged_dragonfly = { name = "Burning Dragonfly ⚠", blacklist = {} }, twinofterror1 = { name = "Seeker Retinazor", blacklist = {} }, stalker_atrium = { name = "Ancient Fuelweaver", blacklist = {} }, sharkboi = { name = "Defiant Frostjaw", blacklist = {} }, mutatedwarg = { name = "Possessed Warg", blacklist = {} }, shadow_knight = { name = "Shadow Knight", blacklist = {} }, shadow_bishop = { name = "Shadow Bishop", blacklist = {} }, beequeen = { name = "Royal Bee Queen", blacklist = { beeguard = true, bee = true, killerbee = true } }, crabking = { name = "Mighty Crab King", blacklist = {} }, deerclops = { name = "Chilling Deerclops", blacklist = {} }, daywalker = { name = "Nightmare Werepig", blacklist = {} }, minotaur = { name = "Ancient Guardian", blacklist = {} }, daywalker2 = { name = "Scrappy Werepig", blacklist = {} }, malbatross = { name = "Flying Malbatross", blacklist = {} }, shadow_rook = { name = "Shadow Rook", blacklist = {} }, klaus = { name = "Wicked Klaus", blacklist = {} }, toadstool = { name = "Grotto Toadstool", blacklist = {} }, alterguardian_phase3 = { name = "Celestial Champion", blacklist = {} } }
+local bosses = { leif_sparse = { name = "Sparse Treeguard", blacklist = {} }, leif = { name = "Treeguard", blacklist = {} }, spiderqueen = { name = "Grand Spider Queen", blacklist = { spider = true, spider_warrior = true, spider_water = true, spider_dropper = true, spider_healer = true, spider_spitter = true, spider_moon = true, spider_hider = true } }, alterguardian_phase1_lunarrift = { name = "Celestial Revenant", blacklist = {} }, alterguardian_phase4_lunarrift = { name = "Celestial Scion", blacklist = {} }, wagboss_robot = { name = "W.A.R.B.O.T", blacklist = {} }, mock_dragonfly = { name = "Wilting Dragonfly", blacklist = {} }, mothergoose = { name = "The Mother Goose", blacklist = {} }, moonmaw_dragonfly = { name = "Moonmaw Dragonfly", blacklist = {} }, hoodedwidow = { name = "The Hooded Widow", blacklist = {} }, eyeofterror = { name = "Eye of Terror", blacklist = {} }, dragonfly = { name = "Dragonfly", blacklist = {} }, moose = { name = "Moose/Goose", blacklist = {} }, bearger = { name = "Bearger", blacklist = {} }, mutatedbearger = { name = "Armored Bearger", blacklist = {} }, mutateddeerclops = { name = "Crystal Deerclops", blacklist = {} }, twinofterror2 = { name = "Spazmatism", blacklist = {} }, antlion = { name = "Desert Antlion", blacklist = {} }, enraged_dragonfly = { name = "Burning Dragonfly ⚠", blacklist = {} }, twinofterror1 = { name = "Retinazor", blacklist = {} }, stalker_atrium = { name = "Ancient Fuelweaver", blacklist = {} }, sharkboi = { name = "Frostjaw", blacklist = {} }, mutatedwarg = { name = "Possessed Warg", blacklist = {} }, shadow_rook = { name = "Shadow Rook", blacklist = {} }, shadow_knight = { name = "Shadow Knight", blacklist = {} }, shadow_bishop = { name = "Shadow Bishop", blacklist = {} }, beequeen = { name = "Bee Queen", blacklist = { beeguard = true, bee = true, killerbee = true } }, crabking = { name = "Crab King", blacklist = {} }, deerclops = { name = "Deerclops", blacklist = {} }, daywalker = { name = "Nightmare Werepig", blacklist = {} }, minotaur = { name = "Ancient Guardian", blacklist = {} }, daywalker2 = { name = "Scrappy Werepig", blacklist = {} }, malbatross = { name = "Malbatross", blacklist = {} }, klaus = { name = "Klaus", blacklist = {} }, toadstool = { name = "Toadstool", blacklist = {} }, alterguardian_phase3 = { name = "Celestial Champion", blacklist = {} } }
 local aoecreatures = { tentacle = { name = "Tentacle", blacklist = {} } }
 
 for k, v in pairs(bosses) do
@@ -204,23 +219,25 @@ if GLOBAL.TheNet:IsDedicated() then
 
     AddPrefabPostInit("willow_ember", function(inst)
         inst:ListenForEvent("onputininventory", function(inst, data)
-            local owner = inst.components.inventoryitem ~= nil and inst.components.inventoryitem.owner or nil
-            if owner == nil then return end
-            local smallest = nil
-            local count = 0
-            for _, item in pairs(owner.components.inventory.itemslots) do
-                if item ~= nil and item.prefab == "willow_ember" then
-                    count = count + 1
-                    if smallest == nil then
-                        smallest = item
-                    else
-                        local itemsize = item.components.stackable ~= nil and item.components.stackable:StackSize() or 1
-                        local smallestsize = smallest.components.stackable ~= nil and smallest.components.stackable:StackSize() or 1
-                        if itemsize < smallestsize then smallest = item end
+            inst:DoTaskInTime(0, function()
+                local owner = inst and inst:IsValid() and inst.components.inventoryitem ~= nil and inst.components.inventoryitem.owner or nil
+                if owner == nil then return end
+                local smallest = nil
+                local count = 0
+                for _, item in pairs(owner.components.inventory.itemslots) do
+                    if item ~= nil and item.prefab == "willow_ember" then
+                        count = count + 1
+                        if smallest == nil then
+                            smallest = item
+                        else
+                            local itemsize = item.components.stackable ~= nil and item.components.stackable:StackSize() or 1
+                            local smallestsize = smallest.components.stackable ~= nil and smallest.components.stackable:StackSize() or 1
+                            if itemsize < smallestsize then smallest = item end
+                        end
                     end
                 end
-            end
-            if count > 1 and smallest ~= nil then owner.components.inventory:DropItem(smallest, true, true) end
+                if count > 1 and smallest ~= nil then owner.components.inventory:DropItem(smallest, true, true) end
+            end)
         end)
     end)
 
@@ -240,6 +257,13 @@ if GLOBAL.TheNet:IsDedicated() then
     local bossdamagehistory = {}
     function Combat:GetAttacked(attacker, damage, weapon, stimuli, spdamage)
         local inst = self.inst
+
+        if attacker ~= nil and attacker.components.debuffable ~= nil and attacker.components.debuffable.debuffs ~= nil and attacker.components.debuffable.debuffs.buff_firefrenzy ~= nil
+        then
+            if inst.components.burnable ~= nil and not inst.components.burnable:IsBurning() then
+                inst.components.burnable:Ignite(true, attacker, attacker)
+            end
+        end
 
         if inst then
             -- Walls resistance stuff
@@ -265,11 +289,6 @@ if GLOBAL.TheNet:IsDedicated() then
             end
 
             local rider = damage and damage > 0 and attacker and attacker.components.rideable and attacker.components.rideable:GetRider()
-
-            if rider then
-                print("rider found")
-                print("rider prefab " .. rider.prefab)
-            end
 
             -- If a boss is being attacked
             if inst:HasTag("epic") then
@@ -345,7 +364,7 @@ if GLOBAL.TheNet:IsDedicated() then
 
                     local mount = nil
                     if attacker.components.rider ~= nil then mount = attacker.components.rider:GetMount() end
-                    if mount then damage = damage * 1.1 end
+                    if mount then damage = damage * 1.25 end
 
                     damage = damage + wigfridcombos[attacker.GUID]
                 else
@@ -548,7 +567,8 @@ if GLOBAL.TheNet:IsDedicated() then
             end)
 
             inst:DoTaskInTime(0, function()
-                if inst and inst.userid and inst.components.maprevealable then inst.components.maprevealable:AddRevealSource(inst, "compassbearer") end
+                if inst and inst.userid and inst.components.maprevealable then inst.components.maprevealable:AddRevealSource("compassbearer", "compassbearer") end
+                if inst.prefab == "waxwell" then inst:RemoveComponent("reader") end
             end)
         end)
     end)
@@ -594,6 +614,29 @@ if GLOBAL.TheNet:IsDedicated() then
         AddPrefabPostInit(prefab, OnBackpackPostInit)
     end
 
+    -- Insulation
+    local warmitems = { torch = 60, lighter = 60, firestaff = 60, amulet = 60 }
+    local colditems = { icestaff = 60, blueamulet = 60, armor_voidcloth = 40, voidclothhat = 40, voidcloth_umbrella = 40, voidcloth_scythe = 40, voidcloth_boomerang = 40, shadow_battleaxe = 40, armor_sanity = 40, dreadstonehat = 40, armordreadstone = 40, nightsword = 40 }
+
+    local function AddInsulationToPrefab(prefab, insulationtype, amount)
+        AddPrefabPostInit(prefab, function(inst)
+            if inst.components.insulator == nil then
+                inst:AddComponent("insulator")
+                inst.components.insulator.insulation = 0
+            end
+            inst.components.insulator.type = insulationtype
+            inst.components.insulator.insulation = (inst.components.insulator.insulation or 0) + amount
+        end)
+    end
+
+    for prefab, amount in pairs(warmitems) do
+        AddInsulationToPrefab(prefab, GLOBAL.SEASONS.WINTER, amount)
+    end
+
+    for prefab, amount in pairs(colditems) do
+        AddInsulationToPrefab(prefab, GLOBAL.SEASONS.SUMMER, amount)
+    end
+
     -- Prototyper range
     local function OnPrototyperPostInit(inst)
         local oldSetRadius = inst.SetRadius
@@ -621,6 +664,40 @@ if GLOBAL.TheNet:IsDedicated() then
     end)
 
     -- Bosses rebalance
+    for boss, _ in pairs(bosses) do
+        AddPrefabPostInit(boss, function(inst)
+            inst:DoTaskInTime(0, function()
+                local data = bosses[inst.prefab]
+                if not data then return end
+                local dice = math.random(0, 2)
+                local prefix = ""
+                if dice == 0 then
+                    prefix = "Dormant "
+                    if inst.components.health ~= nil then
+                        local maxhealth = inst.components.health.maxhealth
+                        inst.components.health:SetMaxHealth(maxhealth * 1.1)
+                        inst.components.health:SetPercent(1)
+                    end
+                elseif dice == 1 then
+                    prefix = "Defiant "
+                    if inst.components.combat ~= nil then inst.components.combat.defaultdamage = inst.components.combat.defaultdamage * 1.1 end
+                elseif dice == 2 then
+                    prefix = "Royal "
+                    if inst.components.timer ~= nil and inst.components.timer.timers ~= nil then
+                        for name, timer in pairs(inst.components.timer.timers) do
+                            if timer.timeleft ~= nil then timer.timeleft = timer.timeleft * 0.90 end
+                            if timer.initial_time ~= nil then timer.initial_time = timer.initial_time * 0.90 end
+                        end
+                    end
+                end
+                local bossname = prefix .. data.name
+                if not inst.components.named then inst:AddComponent("named") end
+                if not inst.components.named then inst.components.named:SetName(bossname) end
+                if not inst:HasTag("epic") then inst:AddTag("epic") end
+            end)
+        end)
+    end
+
     for creature, _ in pairs(aoecreatures) do
         AddPrefabPostInit(creature, function(inst)
             inst:DoTaskInTime(0, function()
@@ -638,6 +715,36 @@ if GLOBAL.TheNet:IsDedicated() then
             end)
         end)
     end
+
+    -- Night Light rework
+    AddPrefabPostInit("nightlight", function(inst)
+        inst:DoTaskInTime(0, function()
+            if not inst then return end
+            if inst.components.childspawner == nil then
+                inst:AddComponent("childspawner")
+                inst.components.childspawner:SetRegenPeriod(TUNING.NIGHTMARELIGHT_REGEN_TIME)
+                inst.components.childspawner:SetSpawnPeriod(TUNING.NIGHTMARELIGHT_RELEASE_TIME / 2)
+                inst.components.childspawner:SetMaxChildren(3)
+                inst.components.childspawner.childname = "crawlingnightmare"
+                inst.components.childspawner:SetRareChild(function(inst, isemergency, target) return "nightmarebeak" end, .35)
+            end
+
+            local function updatenightlightspawner(inst)
+                if inst:HasTag("shadow_fire") then
+                    inst.components.childspawner:StartSpawning()
+                    inst.components.childspawner:StopRegen()
+                else
+                    inst.components.childspawner:StopSpawning()
+                    inst.components.childspawner:StartRegen()
+                end
+            end
+
+            inst:ListenForEvent("onignite", updatenightlightspawner)
+            inst:ListenForEvent("onextinguish", updatenightlightspawner)
+
+            inst:DoTaskInTime(0, updatenightlightspawner)
+        end)
+    end)
 
     -- Wanda rework
     local HORROR_DAMAGE_PER_FUEL = 50
@@ -674,6 +781,8 @@ if GLOBAL.TheNet:IsDedicated() then
         walrus = { { 'meat', 1.00 }, { 'blowdart_pipe', 0.5 }, { 'walrushat', 0.50 }, { 'walrus_tusk', 0.5 }, { 'walrus_tusk', 0.5 } },
         slurtle = { { 'slurtleslime', 1.00 }, { 'slurtle_shellpieces', 0.80 }, { 'slurtleslime', 0.80 }, { 'slurtlehat', 0.30 } },
         snurtle = { { 'slurtleslime', 1.00 }, { 'slurtle_shellpieces', 0.80 }, { 'slurtleslime', 0.80 }, { 'armorsnurtleshell', 0.80 } },
+        lightninggoat = { { 'meat', 1.00 }, { 'meat', 1.00 }, { 'lightninggoathorn', 0.6 }, { 'goatmilk', 0.6 } },
+        chargedlightninggoat = { { 'meat', 1.00 }, { 'meat', 1.00 }, { 'lightninggoathorn', 1 }, { 'goatmilk', 1 }, { 'goatmilk', 0.6 } },
     }
 
     for prefab, loot in pairs(changeloot) do
@@ -688,15 +797,16 @@ if GLOBAL.TheNet:IsDedicated() then
     end
 end
 
-for boss, _ in pairs(bosses) do
-    AddPrefabPostInit(boss, function(inst)
-        inst:DoTaskInTime(0, function()
-            local data = bosses[inst.prefab]
-            if not data then return end
-            inst.name = data.name
-            inst.displayname = data.name
-            if not inst:HasTag("epic") then inst:AddTag("epic") end
-        end)
+-- Change Stacks
+TUNING.STACK_SIZE_MICROITEM = 80
+TUNING.STACK_SIZE_NANOITEM = 100
+
+local changestacks = { willow_ember = TUNING.STACK_SIZE_MICROITEM }
+
+for prefab, maxsize in pairs(changestacks) do
+    AddPrefabPostInit(prefab, function(inst)
+        if not GLOBAL.TheWorld.ismastersim then return end
+        if inst.components.stackable ~= nil then inst.components.stackable.maxsize = maxsize end
     end)
 end
 
@@ -755,9 +865,124 @@ for _, prefab in ipairs(gnomeprefabs) do
     end)
 end
 
+-- Parry Weapons
+local function ReticuleTargetFn()
+    return GLOBAL.Vector3(GLOBAL.ThePlayer.entity:LocalToWorldSpace(6.5, 0, 0))
+end
+
+local function ReticuleMouseTargetFn(inst, mousepos)
+    if mousepos ~= nil then
+        local x, y, z = inst.Transform:GetWorldPosition()
+        local dx = mousepos.x - x
+        local dz = mousepos.z - z
+        local l = dx * dx + dz * dz
+        if l <= 0 then return inst.components.reticule.targetpos end
+        l = 6.5 / math.sqrt(l)
+        return GLOBAL.Vector3(x + dx * l, 0, z + dz * l)
+    end
+end
+
+local function ReticuleUpdatePositionFn(inst, pos, reticule, ease, smoothing, dt)
+    local x, y, z = inst.Transform:GetWorldPosition()
+    reticule.Transform:SetPosition(x, 0, z)
+    local rot = -math.atan2(pos.z - z, pos.x - x) / GLOBAL.DEGREES
+    if ease and dt ~= nil then
+        local rot0 = reticule.Transform:GetRotation()
+        local drot = rot - rot0
+        rot = GLOBAL.Lerp((drot > 180 and rot0 + 360) or (drot < -180 and rot0 - 360) or rot0, rot, dt * smoothing)
+    end
+    reticule.Transform:SetRotation(rot)
+end
+
+GLOBAL.STRINGS.ACTIONS.CASTAOE.SHIELDOFTERROR = "Block"
+GLOBAL.STRINGS.ACTIONS.CASTAOE.FENCE_ROTATOR = "Block"
+
+local shieldprefabs = {
+    shieldofterror = { build = "swap_eye_shield", symbol = "swap_shield" },
+    fence_rotator = { build = "fence_rotator", symbol = "swap_fence_rotator" },
+}
+
+for prefab, swap in pairs(shieldprefabs) do
+    AddPrefabPostInit(prefab, function(inst)
+        inst:AddTag("shield")
+        inst:AddTag("parryweapon")
+        inst:AddTag("rechargeable")
+
+        if inst.components.equippable ~= nil then
+            local old_onequip = inst.components.equippable.onequipfn
+            local old_onunequip = inst.components.equippable.onunequipfn
+
+            inst.components.equippable:SetOnEquip(function(inst, owner)
+                if old_onequip ~= nil then old_onequip(inst, owner) end
+                owner.AnimState:OverrideSymbol("swap_shield", swap.build, swap.symbol)
+            end)
+
+            inst.components.equippable:SetOnUnequip(function(inst, owner)
+                if old_onunequip ~= nil then old_onunequip(inst, owner) end
+                owner.AnimState:ClearOverrideSymbol("swap_shield")
+            end)
+        end
+
+        inst:AddComponent("aoetargeting")
+        inst.components.aoetargeting:SetAlwaysValid(true)
+        inst.components.aoetargeting:SetAllowRiding(false)
+        inst.components.aoetargeting.reticule.reticuleprefab = "reticulearc"
+        inst.components.aoetargeting.reticule.pingprefab = "reticulearcping"
+        inst.components.aoetargeting.reticule.targetfn = ReticuleTargetFn
+        inst.components.aoetargeting.reticule.mousetargetfn = ReticuleMouseTargetFn
+        inst.components.aoetargeting.reticule.updatepositionfn = ReticuleUpdatePositionFn
+        inst.components.aoetargeting.reticule.validcolour = { 1, .75, 0, 1 }
+        inst.components.aoetargeting.reticule.invalidcolour = { .5, 0, 0, 1 }
+        inst.components.aoetargeting.reticule.ease = true
+        inst.components.aoetargeting.reticule.mouseenabled = true
+
+        if not GLOBAL.TheWorld.ismastersim then return end
+
+        local function HasDurability(inst)
+            if inst.components.armor ~= nil then return inst.components.armor.condition > 0 elseif inst.components.finiteuses ~= nil then return inst.components.finiteuses:GetUses() > 0 end
+            return true
+        end
+
+        local function SpellFn(inst, doer, pos)
+            if inst:HasTag("eater") and not HasDurability(inst) then return false end
+            inst.components.parryweapon:EnterParryState(doer, doer:GetAngleToPoint(pos), TUNING.WATHGRITHR_SHIELD_PARRY_DURATION)
+            inst.components.rechargeable:Discharge(TUNING.WATHGRITHR_SHIELD_COOLDOWN)
+        end
+
+        local function UseDurability(inst, pct)
+            if inst.components.armor ~= nil then inst.components.armor:TakeDamage(inst.components.armor.maxcondition * pct) elseif inst.components.finiteuses ~= nil then inst.components.finiteuses:Use(math.max(1, math.ceil(inst.components.finiteuses.total * pct))) end
+        end
+
+        local function OnParry(inst, doer, attacker, damage)
+            UseDurability(inst, inst:HasTag("handfed") and .33 or .1)
+        end
+
+        local function OnDischarged(inst)
+            inst.components.aoetargeting:SetEnabled(false)
+        end
+
+        local function OnCharged(inst)
+            inst.components.aoetargeting:SetEnabled(true)
+        end
+
+        inst:AddComponent("aoespell")
+        inst.components.aoespell:SetSpellFn(SpellFn)
+
+        inst:AddComponent("parryweapon")
+        inst.components.parryweapon:SetParryArc(TUNING.WATHGRITHR_SHIELD_PARRY_ARC)
+        inst.components.parryweapon:SetOnParryFn(OnParry)
+
+        inst:AddComponent("rechargeable")
+        inst.components.rechargeable:SetOnDischargedFn(OnDischarged)
+        inst.components.rechargeable:SetOnChargedFn(OnCharged)
+    end)
+end
+
 -- New recipes
 env.AddRecipe2("piggyback", { GLOBAL.Ingredient("pigskin", 6), GLOBAL.Ingredient("silk", 6), GLOBAL.Ingredient("rope", 4) }, GLOBAL.TECH.SCIENCE_TWO)
 env.AddRecipe2("compass", { GLOBAL.Ingredient("goldnugget", 1), GLOBAL.Ingredient("marble", 1) }, GLOBAL.TECH.SCIENCE_TWO)
+env.AddRecipe2("fence_rotator", { GLOBAL.Ingredient("spear", 1), GLOBAL.Ingredient("marble", 2), GLOBAL.Ingredient("rope", 1) })
+env.AddRecipe2("wathgrithr_shield", { GLOBAL.Ingredient("goldnugget", 3), GLOBAL.Ingredient("beefalowool", 3) })
 
 -- Tuning
 TUNING.MONKEY_TOKEN_COUNTS.LEVEL_1 = 0
@@ -772,24 +997,17 @@ TUNING.WONKEY_WALK_SPEED_PENALTY = 1.1
 TUNING.WONKEY_SPEED_BONUS = 2.5
 TUNING.WONKEY_TIME_TO_RUN = 2
 TUNING.WONKEY_RUN_HUNGER_RATE_MULT = 1.1
-TUNING.WILLOW_LUNAR_FIRE_COOLDOWN = 20
-TUNING.WILLOW_LUNAR_FIRE_DAMAGE = 12
-TUNING.WILLOW_LUNAR_FIRE_PLANAR_DAMAGE = 24
+TUNING.WILLOW_LUNAR_FIRE_COOLDOWN = 16
 TUNING.WX78_MIN_MOISTURE_DAMAGE = -1
-TUNING.WX78_MOVESPEED_CHIPBOOSTS = { 0.00, 0.10, 0.20, 0.30 }
+TUNING.WX78_MOVESPEED_CHIPBOOSTS = { 0.00, 0.1, 0.2, 0.3 }
 TUNING.WOLFGANG_SANITY_NIGHT_DRAIN = 1.5
 TUNING.WOLFGANG_SANITY_NIGHT_DRAIN_SMALL = 1.25
---TUNING.SHADOW_PILLAR_DURATION = 12
---TUNING.SHADOW_PILLAR_DURATION_BOSS = 6
---TUNING.SHADOW_PILLAR_DURATION_PLAYER = 3
 
 TUNING.BEEFALO_HUNGER_RATE = TUNING.BEEFALO_HUNGER_RATE * 0.8
 TUNING.BEEFALO_DOMESTICATION_ATTACKED_BY_PLAYER_DOMESTICATION = 0
 TUNING.BEEFALO_DOMESTICATION_ATTACKED_DOMESTICATION = 0
 TUNING.BEEFALO_DOMESTICATION_LOSE_DOMESTICATION = 0
 TUNING.BEEFALO_DOMESTICATION_ATTACKED_OBEDIENCE = 0
-TUNING.BEEFALO_DOMESTICATION_GAIN_DOMESTICATION = TUNING.BEEFALO_DOMESTICATION_GAIN_DOMESTICATION * 1.2
-TUNING.BEEFALO_DOMESTICATION_BRUSHED_DOMESTICATION = TUNING.BEEFALO_DOMESTICATION_BRUSHED_DOMESTICATION * 1.2
 
 TUNING.OCEANTREE_STAGES_TO_SUPERTALL = 2
 TUNING.MAX_FIRE_DAMAGE_PER_SECOND = 160
@@ -837,9 +1055,16 @@ TUNING.BEEQUEEN_FOCUSTARGET_CD = { 120, 60, 32, 24 }
 TUNING.NO_BOSS_TIME = 16
 
 TUNING.HEATROCK_NUMUSES = TUNING.HEATROCK_NUMUSES * 3
-TUNING.HEAT_ROCK_CARRIED_BONUS_HEAT_FACTOR = 0.7
+TUNING.HEAT_ROCK_CARRIED_BONUS_HEAT_FACTOR = 0.6
 TUNING.EFFIGY_HEALTH_PENALTY = 0
 TUNING.PIGGYBACK_SPEED_MULT = 1
+TUNING.FISHINGROD_USES = 10
+TUNING.FISHING_MINWAIT = 1
+TUNING.FISHING_MAXWAIT = 10
+TUNING.OCEANFISH_MIN_INTEREST_TO_BITE = 0.1
+TUNING.FENCE_ROTATOR_DAMAGE = 51
+TUNING.FENCE_ROTATOR_USES = 250
+TUNING.WATHGRITHR_SHIELD_ARMOR = 500
 
 TUNING.BUILD_DISTANCE = 0.6
 

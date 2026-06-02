@@ -64,6 +64,7 @@ end
 if not GLOBAL.TheNet:IsDedicated() then return end
 
 GLOBAL.AddClientModRPCHandler("bernie_rpc_client_message", "content", function() end)
+GLOBAL.AddClientModRPCHandler("bernie_rpc_client_rank", "content", function() end)
 
 GLOBAL.HandleShardFunction = {}
 
@@ -104,8 +105,32 @@ GLOBAL.HandleShardFunction["bernie_rpc_client_message"] = function(data)
     end
 end
 
+GLOBAL.HandleShardFunction["sadistic_event"] = function(data)
+    if not data then return end
+    if GLOBAL.CallSadisticEvent then
+        GLOBAL.CallSadisticEvent(data.event)
+    else
+        print("[LOG] GLOBAL.CallSadisticEvent NOT FOUND.")
+    end
+end
+
+GLOBAL.HandleShardFunction.rank = function(data)
+    local json = GLOBAL.json.encode(data)
+    if not data.userid then
+        local users = GLOBAL.GetUsers()
+        for _, player in pairs(users) do
+            if player and player.userid then
+                if json then SendModRPCToClient(GetClientModRPC("bernie_rpc_client_rank", "content"), player.userid, json) end
+            end
+        end
+    else
+        SendModRPCToClient(GetClientModRPC("bernie_rpc_client_rank", "content"), data.userid, json)
+    end
+end
+
 GLOBAL.ExecuteOnAllShards = function(data, onlymaster)
     if not data then return end
+    print("[LOG] ExecuteOnAllShards: " .. data.key)
     if not GLOBAL.HandleShardFunction[data.key] then return end
     GLOBAL.HandleShardFunction[data.key](data)
     local shard_id = GLOBAL.TheWorld and GLOBAL.TheWorld.shardid

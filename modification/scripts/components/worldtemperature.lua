@@ -70,7 +70,7 @@ return Class(function(self, inst)
     local _extratemperature = net_float(inst.GUID, "worldtemperature._extratemperature")
 
     function inst:GetCustomTemp()
-        return _extratemperature:value()
+        return _extratemperature:value() or 0
     end
 
     function inst:SetCustomTemp(value)

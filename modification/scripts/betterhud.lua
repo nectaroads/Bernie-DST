@@ -79,12 +79,48 @@ end
 local pageindex = 1
 local guidebookopen = false
 
-local function ShowGuidebookPage()
-    local pages = config and config.guidebook or {}
+local function BuildDescription(description)
+    if type(description) == "table" then return table.concat(description, "\n") end
+    return description or ""
+end
+
+local rankfillings = {}
+
+local function FillPagesWithFillings(pages, fillings)
+    if fillings == nil then return pages end
+    for pageindex, filling in pairs(fillings) do
+        local page = pages[pageindex]
+        if page ~= nil and page.description ~= nil and filling ~= nil then
+            for _, line in ipairs(filling) do
+                table.insert(page.description, line)
+            end
+        end
+    end
+    return pages
+end
+
+local function CopyTable(tbl)
+    local copy = {}
+    for k, v in pairs(tbl) do
+        if type(v) == "table" then
+            copy[k] = CopyTable(v)
+        else
+            copy[k] = v
+        end
+    end
+    return copy
+end
+
+local function ShowGuidebookPage(target, fillings)
+    if not target then target = "guidebook" end
+    local pages = config and CopyTable(config[target] or {}) or {}
+    pages = FillPagesWithFillings(pages, fillings)
     local page = pages[pageindex]
     if not page then return end
 
     local buttons = {}
+
+    if GLOBAL.ThePlayer then GLOBAL.ThePlayer.SoundEmitter:PlaySound("dontstarve/common/use_book") end
 
     if pageindex == 1 then
         table.insert(buttons, {
@@ -102,7 +138,7 @@ local function ShowGuidebookPage()
             cb = function()
                 GLOBAL.TheFrontEnd:PopScreen()
                 pageindex = pageindex - 1
-                ShowGuidebookPage()
+                ShowGuidebookPage(target, fillings)
             end
         })
     end
@@ -113,7 +149,7 @@ local function ShowGuidebookPage()
             cb = function()
                 GLOBAL.TheFrontEnd:PopScreen()
                 pageindex = pageindex + 1
-                ShowGuidebookPage()
+                ShowGuidebookPage(target, fillings)
             end,
         })
     else
@@ -126,7 +162,9 @@ local function ShowGuidebookPage()
         })
     end
 
-    ShowList(CookString(page.title, GLOBAL.ThePlayer), CookString(page.description, GLOBAL.ThePlayer), buttons)
+    local description = BuildDescription(page.description)
+
+    ShowList(CookString(page.title, GLOBAL.ThePlayer), CookString(description, GLOBAL.ThePlayer), buttons)
 end
 
 function OnWorldPostInit(inst)
@@ -136,12 +174,70 @@ function OnWorldPostInit(inst)
             ShowGuidebookPage()
             guidebookopen = true
             if GLOBAL.ThePlayer then
-                GLOBAL.ThePlayer:DoTaskInTime(3, function()
+                GLOBAL.ThePlayer:DoTaskInTime(5, function()
+                    guidebookopen = false
+                end)
+            end
+        end
+    end)
+
+    GLOBAL.BindKey(283, function()
+        if guidebookopen == false then
+            ShowGuidebookPage("rank", rankfillings)
+            guidebookopen = true
+            if GLOBAL.ThePlayer then
+                GLOBAL.ThePlayer:DoTaskInTime(5, function()
                     guidebookopen = false
                 end)
             end
         end
     end)
 end
+
+local function BuildRankFilling(data, key)
+    local filling = {}
+    local leaderboard
+    local rankkey
+    if key == "points" then
+        leaderboard = data.pointsleaderboard
+        rankkey = "pointrank"
+    elseif key == "oinks" then
+        leaderboard = data.oinksleaderboard
+        rankkey = "oinkrank"
+    else
+        return filling
+    end
+    local found = false
+    if leaderboard then
+        for i, entry in ipairs(leaderboard) do
+            local num = i < 10 and "0" .. tostring(i) or tostring(i)
+            local line = num .. ". " .. tostring(entry.name or "Unknown") .. " | " .. tostring(entry[key] or 0)
+            if i <= 10 then table.insert(filling, line) end
+            if data.player and entry.userid == data.player.userid then found = true end
+        end
+    end
+    if not found and data.player then
+        table.insert(filling, tostring(data.player[rankkey] or "?") .. ". " .. tostring(data.player.name or "Você") .. " | " .. tostring(data.player[key] or 0))
+    end
+    return filling
+end
+
+local function DecodeRPCData(payload)
+    if type(payload) == "table" then return payload end
+    if type(payload) == "string" then
+        local ok, data = GLOBAL.pcall(GLOBAL.json.decode, payload)
+        if ok then return data end
+    end
+    return nil
+end
+
+function HandleClientRank(payload)
+    local data = DecodeRPCData(payload)
+    if not data then return end
+    rankfillings[2] = BuildRankFilling(data, "points")
+    rankfillings[3] = BuildRankFilling(data, "oinks")
+end
+
+AddClientModRPCHandler("bernie_rpc_client_rank", "content", HandleClientRank)
 
 AddPrefabPostInit("world", OnWorldPostInit)

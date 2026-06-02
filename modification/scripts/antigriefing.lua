@@ -31,27 +31,32 @@ local function ConvertAshes(inst, container)
         do
             local restored_this_ash = 0
             for i = 1, ASH_RESTORE_VALUE do
-                local item = GetFirstBurntItem()
-
-                while item and item.components and (ignoredprefabs[item.prefab] or item.components.equippable ~= nil or item.components.perishable ~= nil or item.components.health ~= nil) do
-                    ConsumeBurntItem(item.prefab)
-                    item = GetFirstBurntItem()
+                local prefab = GetFirstBurntItem()
+                while prefab ~= nil and ignoredprefabs[prefab] do
+                    ConsumeBurntItem(prefab)
+                    prefab = GetFirstBurntItem()
                 end
-
-                local prefab = item.prefab
                 if prefab == nil then break end
                 local item = GLOBAL.SpawnPrefab(prefab)
                 if item ~= nil then
-                    local accepted = container:GiveItem(item)
-                    if not accepted then
-                        local x, y, z = inst.Transform:GetWorldPosition()
-                        item.Transform:SetPosition(x, y, z)
+                    if item.components.equippable ~= nil
+                        or item.components.perishable ~= nil
+                        or item.components.health ~= nil
+                    then
+                        item:Remove()
+                        ConsumeBurntItem(prefab)
+                    else
+                        local accepted = container:GiveItem(item)
+                        if not accepted then
+                            local x, y, z = inst.Transform:GetWorldPosition()
+                            item.Transform:SetPosition(x, y, z)
+                        end
+                        ConsumeBurntItem(prefab)
+                        restored_this_ash = restored_this_ash + 1
+                        wasconsumed = true
                     end
-                    ConsumeBurntItem(prefab)
-                    restored_this_ash = restored_this_ash + 1
-                    wasconsumed = true
                 else
-                    break
+                    ConsumeBurntItem(prefab)
                 end
             end
             if restored_this_ash > 0 then

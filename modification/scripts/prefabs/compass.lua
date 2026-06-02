@@ -50,7 +50,7 @@ local function onequip(inst, owner)
     -- inst.components.fueled:StartConsuming()
 
     if owner.components.maprevealable ~= nil then
-        owner.components.maprevealable:AddRevealSource(inst, "player")
+        owner.components.maprevealable:AddRevealSource("player", "player")
     end
     owner:AddTag("compassbearer")
 end

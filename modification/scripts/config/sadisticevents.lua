@@ -12,8 +12,8 @@ return {
         messageend = "O calor começa a dissipar..."
     },
     houndattack = {
-        messagestart = "Feras selvagens estão à espreita!",
-        messagefind = "Sentiram o cheiro de "
+        messagestart = "Feras selvagens estão à espreita...",
+        messagefind = "Uma vítima foi encontrada!"
     },
     krampusattack = {
         messagestart = "Ladrões vagueiam pelo Constant!",

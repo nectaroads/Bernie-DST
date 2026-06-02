@@ -84,18 +84,11 @@ local clienteventhandler = {}
 
 clienteventhandler.blink = function(data)
     if not GLOBAL.ThePlayer or not GLOBAL.TheFrontEnd then return end
-    local count = data.count or 1
-    local rate = data.rate or 0.15
-    local blacktime = data.blacktime or 0.04
-    local fadetime = data.fadetime or 0.15
-    for i = 0, count do
-        GLOBAL.ThePlayer:DoTaskInTime(i * rate, function()
-            GLOBAL.TheFrontEnd:Fade(false, 0)
-            GLOBAL.ThePlayer:DoTaskInTime(blacktime, function()
-                GLOBAL.TheFrontEnd:Fade(true, fadetime)
-            end)
-        end)
-    end
+    local fadetime = data.fadetime or 0.3
+    GLOBAL.TheFrontEnd:Fade(false, 0)
+    GLOBAL.ThePlayer:DoTaskInTime(0, function()
+        GLOBAL.TheFrontEnd:Fade(true, fadetime)
+    end)
 end
 
 local function DecodeRPCData(payload)
@@ -114,5 +107,14 @@ function HandleClientChatMessage(payload)
     if data.sound and GLOBAL.ThePlayer then GLOBAL.ThePlayer.SoundEmitter:PlaySound(data.sound) end
     GLOBAL.ShowCustomMessage(data)
 end
+
+AddPlayerPostInit(function(inst)
+    inst:DoTaskInTime(0, function()
+        if not inst or not inst:IsValid() then return end
+        if (inst ~= GLOBAL.ThePlayer) then return end
+        GLOBAL.ShowCustomMessage({ type = "server", message = "Aperte F1 para ler o Manual." })
+        GLOBAL.ShowCustomMessage({ type = "server", message = "Aperte F2 para acessar o Rank!" })
+    end)
+end)
 
 AddClientModRPCHandler("bernie_rpc_client_message", "content", HandleClientChatMessage)

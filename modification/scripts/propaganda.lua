@@ -10,5 +10,8 @@ AddPrefabPostInit("world", function(inst)
         local target = propaganda[rand]
         local data = { key = "bernie_rpc_client_message", rpc = "bernie_rpc_client_message", type = "server", message = target or "error" }
         GLOBAL.ExecuteOnAllShards(data)
+        local users = GLOBAL.GetUsers()
+        local jsonEncoded = GLOBAL.json.encode({ key = "world_propaganda", propaganda = target, users = users })
+        GLOBAL.SendRequest(jsonEncoded)
     end)
 end)

@@ -33,7 +33,17 @@ return {
         "Tudo o que estraga é adubo, sem exceção!",
         "Wanda pode penetrar Armadura-Planar usando Pure Horror!",
         "Alimente Chester com cinzas para recuperar itens queimados.",
-        "Aperte F1 e leia o Guia-Brasil-Together!",
-        "Wonkey não é fraco como de costume, vale a pena experimentar!"
+        "Aperte F1 e leia o Guia Brasil-Together!",
+        "Wonkey não é fraco como de costume, vale a pena experimentar!",
+        "Aperte F2 e descubra o Rank Brasil-Together!",
+        "Beefalos bem alimentados são domados mais facilmente.",
+        "Chapéu de Beefalo te ajuda a domar seu companheiro!",
+        "Rifts são mais frequentes por aqui...",
+        "Bosses sempre nascem com qualidades aleatórias, então tenha cautela.",
+        "Itens quentes te esquentam. Itens gelados ou sombrios te esfriam.",
+        "Suas roupas protegem sua pedra térmica do ambiente.",
+        "Alimentos crus te alimentam menos, mas pratos costumam durar mais.",
+        "Cabras, Lesmas, Walrus, etc possuem drops mais previsíveis!",
+        "Sabia que um figueiro pode crescer no bioma de mandrágoras?"
     }
 }

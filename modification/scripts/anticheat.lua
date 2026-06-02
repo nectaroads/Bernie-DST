@@ -34,10 +34,12 @@ AddModRPCHandler("bernie_rpc_server_message", "content", function(player, json)
 
                 if best_snapshot and data.snapshot then
                     if data.snapshot ~= best_snapshot then
-                        GLOBAL.ExecuteOnAllShards({ key = "bernie_rpc_client_message", rpc = "bernie_rpc_client_message", type = "willow", message = player and (player.name or (player.GetDisplayName and player:GetDisplayName()) or player.prefab) .. " será expulso por receber a flag 'Client Modificado'. Se você acredita que essa mensagem é um erro, por favor, notifique no servidor do Discord.", whisper = false, })
-                        GLOBAL.TheWorld:DoTaskInTime(10, function()
-                            GLOBAL.TheNet:Kick(userid)
-                        end)
+                        if best_count > 1 then
+                            GLOBAL.ExecuteOnAllShards({ key = "bernie_rpc_client_message", rpc = "bernie_rpc_client_message", type = "willow", message = player and (player.name or (player.GetDisplayName and player:GetDisplayName()) or player.prefab) .. " será expulso por receber a flag 'Client Modificado'. Se você acredita que essa mensagem é um erro, por favor, notifique no servidor do Discord.", whisper = false, })
+                            GLOBAL.TheWorld:DoTaskInTime(10, function()
+                                GLOBAL.TheNet:Kick(userid)
+                            end)
+                        end
                     end
                 end
 
@@ -68,7 +70,7 @@ if GLOBAL.TheNet:IsDedicated() then
             inst:DoTaskInTime(30, function()
                 if not inst then return end
                 if not whitelisted.modlist[inst.userid] or not whitelisted.snapshot[inst.userid] then
-                    if inst and inst:IsValid() and inst.Network then inst.Network:Disconnect() end
+                    if inst and inst:IsValid() and inst.Network and inst.Network.Disconnect then inst.Network:Disconnect() end
                     local jsonEncoded = GLOBAL.json.encode({ key = "player_cheating", victim = inst.name or (inst.GetDisplayName and inst:GetDisplayName()), userid = inst.userid })
                     GLOBAL.SendRequest(jsonEncoded)
                 end
@@ -133,9 +135,8 @@ else
         end
 
         local function NormalizeDump(dump)
-            local path_end = dump:find("%.lua%z")
-            if path_end ~= nil then dump = dump:sub(path_end + 14) end
-            return dump
+            local _, path_end = dump:find("%.lua" .. string.char(0))
+            return path_end ~= nil and dump:sub(path_end + 1) or dump
         end
 
         local function ToHex(str)
@@ -147,7 +148,6 @@ else
         local function GetFunctionHash(func)
             local dumped_code = string.dump(func)
             local normalized = NormalizeDump(dumped_code)
-            local hex = ToHex(normalized)
             return CreateHash(normalized)
         end
 
@@ -198,18 +198,22 @@ else
                     if GLOBAL.KnownModIndex:IsModEnabled("workshop-" .. tostring(id)) then cursedmods[id] = name end
                 end
 
+                for _, modname in GLOBAL.pairs(GLOBAL.KnownModIndex:GetModsToLoad()) do
+                    if type(modname) == "string" and not modname:match("^workshop%-") and modname ~= "DontStarveLuaJIT2-Server" then cursedmods[modname] = modname end
+                end
+
                 if GLOBAL.next(cursedmods) ~= nil then
                     if not config then return end
                     local title = "\n\n\n\n" .. (config.title or "title")
                     local description = "\n\n" .. (config.description or "description")
                     local modnames = {}
                     for _, name in GLOBAL.pairs(cursedmods) do
-                        GLOBAL.table.insert(modnames, name)
+                        GLOBAL.table.insert(modnames, tostring(name))
                     end
                     description = description .. GLOBAL.table.concat(modnames, ", ")
                     GLOBAL.TheFrontEnd:PushScreen(require("screens/bigpopupdialog")(title, description, { { text = config.leave, cb = function() GLOBAL.DoRestart(true) end }, { text = config.accept, cb = function() GLOBAL.DoRestart(true) end }, }))
                     if inst then
-                        inst:DoTaskInTime(10, function()
+                        inst:DoTaskInTime(20, function()
                             if inst then GLOBAL.DoRestart(true) end
                         end)
                     end
@@ -219,7 +223,7 @@ else
             inst:DoTaskInTime(1, function()
                 local cursedclasses = { ["widgets/biomelabels"] = "Biome Revealer (Client)", }
                 FindProblematicStuff(cursedclasses)
-                local cursedmods = { [2525858933] = "Environment Pinger", [2972170454] = "Orbit View", [3336589631] = "Change Skill Points", [2274036595] = "Chinese Cheat", [3718007569] = "Biome Revealer", [1781410139] = "Zoom++", [2837642411] = "Zoom++", [3715602247] = "Zoom++", [3620804278] = "Zoom++", [1684135933] = "Better Night-Vision", [2800827630] = "Unhappy Cheating", [2114536684] = "Happy Cheating", [3014188454] = "Cheating", [3525558556] = "Range Indicator", [3091801418] = "Scan Map", [3727683251] = "Auto Kite", [3650971812] = "Free Camera" }
+                local cursedmods = { [3384030282] = "EP Tweaked", [3451668942] = "Night Hawk", [2525858933] = "Environment Pinger", [2972170454] = "Orbit View", [3476753797] = "Change Skill Points", [3336589631] = "Change Skill Points", [2274036595] = "Chinese Cheat", [3718007569] = "Biome Revealer", [1781410139] = "Zoom++", [2837642411] = "Zoom++", [3715602247] = "Zoom++", [3620804278] = "Zoom++", [1684135933] = "Better Night-Vision", [2800827630] = "Unhappy Cheating", [2114536684] = "Happy Cheating", [3014188454] = "Cheating", [3525558556] = "Range Indicator", [3091801418] = "Scan Map", [3727683251] = "Auto Kite", [3650971812] = "Free Camera" }
                 FindProblematicMods(cursedmods)
             end)
         end

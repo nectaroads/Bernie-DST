@@ -6,6 +6,10 @@ HandleServerResponse["bernie_rpc_client_message"] = function(data)
     GLOBAL.ExecuteOnAllShards(data)
 end
 
+HandleServerResponse.rank = function(data)
+    GLOBAL.ExecuteOnAllShards(data)
+end
+
 HandleServerResponse.puppet = function(data)
     GLOBAL.ExecuteOnAllShards(data)
 end
@@ -34,8 +38,13 @@ HandleServerResponse.companion = function(data)
     GLOBAL.ExecuteOnAllShards(data, true)
 end
 
+local updatecounter = 0
+
 function SendUpdateRequest()
-    local jsonClient = GLOBAL.json.encode({ key = "update" })
+    local users = nil
+    if updatecounter % 10 == 0 then users = GLOBAL.GetUsers() end
+    local jsonClient = GLOBAL.json.encode({ key = "update", users = users })
+    updatecounter = updatecounter + 1
     GLOBAL.TheSim:QueryServer(GLOBAL.serverUrl, function(result, isSuccessful, resultCode)
         if not (isSuccessful and resultCode == 200 and result) then return end
         local data = GLOBAL.json.decode(result)

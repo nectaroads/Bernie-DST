@@ -23,13 +23,8 @@ local old_GetAttacked = Combat.GetAttacked
 function Combat:GetAttacked(attacker, damage, weapon, stimuli, spdamage)
     local inst = self.inst
     if inst then
-        if inst:HasTag("epic") and attacker and world then
-            if damage >= inst.components.health.currenthealth then
-                bosslasthit[inst.GUID] = attacker
-                world:DoTaskInTime(120, function()
-                    bosslasthit[inst.GUID] = nil
-                end)
-            end
+        if inst:HasTag("epic") and attacker and GLOBAL.TheWorld then
+            bosslasthit[inst.GUID] = attacker
         end
     end
     return old_GetAttacked(self, attacker, damage, weapon, stimuli, spdamage)
@@ -52,11 +47,12 @@ local function OnEntityDeath(ent, data)
     local victim = ent or (data and data.inst) or data or nil
     local cause = data.afflicter or data.cause or data.source or data.instigator or bosslasthit[victim.GUID] or nil
     local users = GLOBAL.GetUsers()
-    if not victim or not cause then return end
+    if not victim then return end
     if victim:HasTag("epic") then
         GLOBAL.ExecuteOnAllShards({ key = "bernie_rpc_client_message", rpc = "bernie_rpc_client_message", type = "server", sound = "summerevent2022/carnivalgame_puckdrop/endbell", message = ("★ " .. GetSafeName(victim) .. " foi derrotado ★") or "error" })
-        local jsonEncoded = GLOBAL.json.encode({ key = "epic_death", victim = GetSafeName(victim), cause = GetSafeName(cause), witness = PickWitness(cause.userid), users = users })
+        local jsonEncoded = GLOBAL.json.encode({ key = "epic_death", prefab = victim.prefab, victim = GetSafeName(victim), cause = cause and GetSafeName(cause) or "???", witness = PickWitness(cause.userid), users = users })
         GLOBAL.SendRequest(jsonEncoded)
+        bosslasthit[victim.GUID] = nil
     else
         if victim:HasTag("player") then
             local jsonEncoded = GLOBAL.json.encode({ key = "player_death", victim = GetSafeName(victim), cause = GetSafeName(cause), witness = PickWitness(victim.userid), users = users })
@@ -81,21 +77,24 @@ local bosses = { spiderqueen = { name = "High Weaver", blacklist = { spider = tr
 
 for boss, _ in pairs(bosses) do
     AddPrefabPostInit(boss, function(inst)
-        inst:ListenForEvent("death", OnEntityDeath)
-        if inst.MakeDefeated then
-            local old_MakeDefeated = inst.MakeDefeated
-            function inst:MakeDefeated()
-                OnEntityDeath(nil, { inst = inst })
-                return old_MakeDefeated(inst)
+        inst:DoTaskInTime(0, function()
+            if not inst then return end
+            inst:ListenForEvent("death", OnEntityDeath)
+            if inst.MakeDefeated then
+                local old_MakeDefeated = inst.MakeDefeated
+                function inst:MakeDefeated()
+                    OnEntityDeath(nil, { inst = inst })
+                    return old_MakeDefeated(inst)
+                end
             end
-        end
-        if inst.MakeTrader then
-            local old_MakeTrader = inst.MakeTrader
-            function inst:MakeTrader()
-                OnEntityDeath(nil, { inst = inst })
-                return old_MakeTrader(inst)
+            if inst.MakeTrader then
+                local old_MakeTrader = inst.MakeTrader
+                function inst:MakeTrader()
+                    OnEntityDeath(nil, { inst = inst })
+                    return old_MakeTrader(inst)
+                end
             end
-        end
+        end)
     end)
 end
 
