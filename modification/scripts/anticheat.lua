@@ -86,6 +86,7 @@ if GLOBAL.TheNet:IsDedicated() then
 
     local old_GetAttacked = Combat.GetAttacked
     function Combat:GetAttacked(attacker, damage, weapon, stimuli, spdamage)
+        if not (damage > 0) then return end
         if attacker and attacker:IsValid() and attacker:HasTag("player") and attacker.sg and attacker.sg.currentstate then
             local isattack = attacker.sg.currentstate.name == "attack"
             local isequippable = weapon and weapon.components and weapon.components.equippable ~= nil
@@ -223,7 +224,7 @@ else
             inst:DoTaskInTime(1, function()
                 local cursedclasses = { ["widgets/biomelabels"] = "Biome Revealer (Client)", }
                 FindProblematicStuff(cursedclasses)
-                local cursedmods = { [3384030282] = "EP Tweaked", [3451668942] = "Night Hawk", [2525858933] = "Environment Pinger", [2972170454] = "Orbit View", [3476753797] = "Change Skill Points", [3336589631] = "Change Skill Points", [2274036595] = "Chinese Cheat", [3718007569] = "Biome Revealer", [1781410139] = "Zoom++", [2837642411] = "Zoom++", [3715602247] = "Zoom++", [3620804278] = "Zoom++", [1684135933] = "Better Night-Vision", [2800827630] = "Unhappy Cheating", [2114536684] = "Happy Cheating", [3014188454] = "Cheating", [3525558556] = "Range Indicator", [3091801418] = "Scan Map", [3727683251] = "Auto Kite", [3650971812] = "Free Camera" }
+                local cursedmods = { [3449488023] = "Environment Pinger", [3384030282] = "EP Tweaked", [3451668942] = "Night Hawk", [2525858933] = "Environment Pinger", [2972170454] = "Orbit View", [3476753797] = "Change Skill Points", [3336589631] = "Change Skill Points", [2274036595] = "Chinese Cheat", [3718007569] = "Biome Revealer", [1781410139] = "Zoom++", [2837642411] = "Zoom++", [3715602247] = "Zoom++", [3620804278] = "Zoom++", [1684135933] = "Better Night-Vision", [2800827630] = "Unhappy Cheating", [2114536684] = "Happy Cheating", [3014188454] = "Cheating", [3525558556] = "Range Indicator", [3091801418] = "Scan Map", [3727683251] = "Auto Kite", [3650971812] = "Free Camera" }
                 FindProblematicMods(cursedmods)
             end)
         end

@@ -783,6 +783,7 @@ if GLOBAL.TheNet:IsDedicated() then
         snurtle = { { 'slurtleslime', 1.00 }, { 'slurtle_shellpieces', 0.80 }, { 'slurtleslime', 0.80 }, { 'armorsnurtleshell', 0.80 } },
         lightninggoat = { { 'meat', 1.00 }, { 'meat', 1.00 }, { 'lightninggoathorn', 0.6 }, { 'goatmilk', 0.6 } },
         chargedlightninggoat = { { 'meat', 1.00 }, { 'meat', 1.00 }, { 'lightninggoathorn', 1 }, { 'goatmilk', 1 }, { 'goatmilk', 0.6 } },
+        krampus = { { 'monstermeat', 1.0 }, { 'charcoal', 1.0 }, { 'charcoal', 0.1 }, { 'steelwool', 0.1 }, { 'gears', 0.1 }, { 'livinglog', 0.1 }, { 'marble', 0.1 }, { 'krampus_sack', .01 } }
     }
 
     for prefab, loot in pairs(changeloot) do
@@ -982,7 +983,7 @@ end
 env.AddRecipe2("piggyback", { GLOBAL.Ingredient("pigskin", 6), GLOBAL.Ingredient("silk", 6), GLOBAL.Ingredient("rope", 4) }, GLOBAL.TECH.SCIENCE_TWO)
 env.AddRecipe2("compass", { GLOBAL.Ingredient("goldnugget", 1), GLOBAL.Ingredient("marble", 1) }, GLOBAL.TECH.SCIENCE_TWO)
 env.AddRecipe2("fence_rotator", { GLOBAL.Ingredient("spear", 1), GLOBAL.Ingredient("marble", 2), GLOBAL.Ingredient("rope", 1) })
-env.AddRecipe2("wathgrithr_shield", { GLOBAL.Ingredient("goldnugget", 3), GLOBAL.Ingredient("beefalowool", 3) })
+env.AddRecipe2("wathgrithr_shield", { GLOBAL.Ingredient("goldnugget", 3), GLOBAL.Ingredient("beefalowool", 3) }, GLOBAL.TECH.NONE, { builder_skill = "wathgrithr_arsenal_shield_1" })
 
 -- Tuning
 TUNING.MONKEY_TOKEN_COUNTS.LEVEL_1 = 0

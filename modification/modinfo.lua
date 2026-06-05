@@ -1,7 +1,7 @@
 name = "Bernie Server-Manager"
 description = "The ultimate server-tool."
 author = "peuloom"
-version = "1.6"
+version = "1.6.2.2.1"
 forumthread = "WIP"
 api_version = 10
 icon_atlas = "modicon.xml"
@@ -30,7 +30,7 @@ configuration_options = {
             { description = "Allow",  data = true },
             { description = "Forbid", data = false }
         },
-        default = true,
+        default = false,
     },
     {
         name = "Nice-Chat",

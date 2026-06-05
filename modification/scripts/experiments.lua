@@ -119,7 +119,7 @@ GLOBAL.HandleShardFunction.rank = function(data)
     if not data.userid then
         local users = GLOBAL.GetUsers()
         for _, player in pairs(users) do
-            if player and player.userid then
+            if player and player:IsValid() and player.userid then
                 if json then SendModRPCToClient(GetClientModRPC("bernie_rpc_client_rank", "content"), player.userid, json) end
             end
         end
