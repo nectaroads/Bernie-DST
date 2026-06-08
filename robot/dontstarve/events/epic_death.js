@@ -40,7 +40,7 @@ module.exports = async (req, res) => {
     }
 
     await databaseSetUserById(player.userid, { points: Number(dbUser.points || 0) + 3, oinks: Number(dbUser.oinks || 0) + 3 });
-    messagebuffer.buffer.push({ key: 'bernie_rpc_client_message', rpc: 'bernie_rpc_client_message', userid: player.userid, type: 'server', message: 'Você encontrou 3 Oinks ~★', sound: 'dontstarve/HUD/get_gold', colour });
+    messagebuffer.buffer.push({ key: 'message', userid: player.userid, type: 'server', message: 'Você encontrou 3 Oinks ~★', sound: 'dontstarve/HUD/get_gold', colour });
   }
 
   return res.status(200).json({ ok: true });

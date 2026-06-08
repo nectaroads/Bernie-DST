@@ -127,14 +127,11 @@ return Class(function(self, inst)
     end
 
     local function CalculateSummerBloom(dt)
-        -- Update summer blooming
         if _daylight and _season == "summer" then
             _summerblooming = true
             _summerbloom_ramp = math.min(_summerbloom_ramp + dt / _summerbloom_ramp_time, 1)
         elseif _summerblooming then
-            -- turn off the bloom out of summer
             _summerbloom_ramp = math.max(_summerbloom_ramp - dt / _summerbloom_ramp_time, 0)
-            -- print("Killing off the summer bloom",_season,_daylight and "day" or "night",_summerbloom_ramp)
         else
             return
         end
@@ -146,21 +143,15 @@ return Class(function(self, inst)
             _summerbloom_modifier = 0
             _summerbloom_time_to_new_modifier = 0
             _summerbloom_current_time = 0
-            -- print("Turning off the summer bloom")
             return
         end
 
         if _summerbloom_time_to_new_modifier <= _summerbloom_current_time then
-            -- start up the next throb
             local new_period = math.random(SUMMER_BLOOM_PERIOD_MIN, SUMMER_BLOOM_PERIOD_MAX)
             _summerbloom_modifier = TWOPI / new_period
             _summerbloom_time_to_new_modifier = new_period
             _summerbloom_current_time = 0
-            -- print("New Summer bloom phase",_summerbloom_time_to_new_modifier)
         end
-        -- This is essentially a sine wave [sin(x - pi/2) = 1 - cos(x)] with amplitude 0 - 1, shifted to the left so that the magnitude is zero at time zero
-        -- The result is multiplied to a combination of a base intensity value and a time-of-day temperature dependant value
-        -- Finally we add this to the original intensity (1.0) so that we're always increasing the total intensity
         return 1 + _summerbloom_ramp * (1 - .5 * math.cos(_summerbloom_current_time * _summerbloom_modifier)) * (SUMMER_BLOOM_BASE + SUMMER_BLOOM_TEMP_MODIFIER * _phasetemperature)
     end
 

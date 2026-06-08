@@ -2,6 +2,7 @@ return {
     cooldown = 30, -- minutes
     pool = {
         "Quer acesso ao código fonte? github.com/nectaroads/Bernie-DST",
+        "Junte-se ao nosso servidor Discord! discord.gg/37yfuWjyj7",
         "Cuidado! Beefalos distribuem dano para quem está acima dele.",
         "Beefalos não perdem obediência ao serem atacados, que conveniente!",
         "Walter não consegue manter equilíbrio em Beefalos.",
@@ -44,6 +45,9 @@ return {
         "Suas roupas protegem sua pedra térmica do ambiente.",
         "Alimentos crus te alimentam menos, mas pratos costumam durar mais.",
         "Cabras, Lesmas, Walrus, etc possuem drops mais previsíveis!",
-        "Sabia que um figueiro pode crescer no bioma de mandrágoras?"
+        "Sabia que um figueiro pode crescer no bioma de mandrágoras?",
+        "Krampus podem carregar tesouros adicionais.",
+        "Wickerbottom NUNCA esquece das coisas que aprendeu.",
+        "Escudos e Rapieiras podem defender ataques!"
     }
 }

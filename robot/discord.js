@@ -1,8 +1,8 @@
-const { GatewayIntentBits, EmbedBuilder, Client, Partials } = require('discord.js');
+const { GatewayIntentBits, EmbedBuilder, Client, Partials, ActivityType } = require('discord.js');
 const path = require('path');
 const fs = require('fs');
-const { dotenv } = require('./variables');
-const { print } = require('./tools');
+const { dotenv, dontstarveserver } = require('./variables');
+const { print, pingUrl, pingHost } = require('./tools');
 
 let discord = { client: null, guilds: {}, channels: {}, roles: {}, members: {} };
 
@@ -131,6 +131,37 @@ async function startDiscordClient() {
   await discord.client.login(dotenv.DISCORDTOKEN);
   print(`[Success] Discord: Client logged-in: ${discord.client.user.username}`);
   await syncDiscordCommands(commands);
+
+  discord.client.user.setPresence({ activities: [{ name: `Online: ${dontstarveserver.playersonline}/${dontstarveserver.maxplayers} | TPS: ${dontstarveserver.tps} | Ping: ${dontstarveserver.ping}`, type: ActivityType.Playing }], status: 'online' });
+  setInterval(function () {
+    discord.client.user.setPresence({ activities: [{ name: `Online: ${dontstarveserver.playersonline}/${dontstarveserver.maxplayers} | TPS: ${dontstarveserver.tps} | Ping: ${dontstarveserver.ping}`, type: ActivityType.Playing }], status: 'online' });
+  }, 30000);
+  let internetBadChecks = 0;
+  let internetAlerted = false;
+
+  setInterval(async () => {
+    const tests = await Promise.all([pingHost('Cloudflare', '1.1.1.1'), pingHost('Google', '8.8.8.8'), pingHost('GitHub', 'github.com')]);
+    const online = tests.filter(test => test.online && typeof test.ping === 'number');
+    const ping = online.length > 0 ? Math.max(...online.map(test => test.ping)) : 0;
+    dontstarveserver.ping = ping;
+    const badInternet = ping === 0 || ping >= 500;
+    if (badInternet) {
+      internetBadChecks++;
+    } else {
+      internetBadChecks = 0;
+      internetAlerted = false;
+    }
+    if (internetBadChecks >= 3 && !internetAlerted) {
+      internetAlerted = true;
+      const channel = await getClientChannel(dotenv.GUILDID, dotenv.CHATROOM);
+      if (channel) {
+        const roleId = '1265501710256705607';
+        channel.send({ content: `-# <@&${roleId}>`, embeds: [buildEmbed({ color: 0xffb256, description: `**\`⚠️\` · O servidor está com má performance! \`PING: ${ping || 'OFFLINE'}\`**` })], allowedMentions: { roles: [roleId] } }).catch(error => {
+          print(`[Error] Application error: ${error}`);
+        });
+      }
+    }
+  }, 60 * 1000);
 }
 
 function buildEmbed({ author = null, title = null, description = null, thumbnail = null, url = null, image = null, footer = null, timestamp = null, fields = [], color = 0x2b2d31 }) {

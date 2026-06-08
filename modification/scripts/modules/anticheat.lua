@@ -1,121 +1,10 @@
-print('[Bernie] Starting Anti-Cheat module')
+print('[Bernie] Starting Anticheat module')
 
+local isclient = not GLOBAL.TheNet:IsDedicated()
 local config = GLOBAL.LoadConfig("anticheat.lua")
-
 local whitelisted = { modlist = {}, snapshot = {} }
 
-AddModRPCHandler("bernie_rpc_server_message", "content", function(player, json)
-    if GLOBAL.TheNet:IsDedicated() then
-        if player == nil or json == nil then return end
-        local success, data = GLOBAL.pcall(GLOBAL.json.decode, json)
-        if data and data.key then
-            if data.key == "snapshot" then
-                local iscaves = GLOBAL.TheWorld:HasTag("cave")
-                whitelisted.snapshot[player.userid] = data.snapshot
-
-                local count = {}
-                for userid, snapshot in pairs(whitelisted.snapshot) do
-                    if snapshot ~= nil then
-                        count[snapshot] = (count[snapshot] or 0) + 1
-                    end
-                end
-
-                local best_snapshot = nil
-                local best_count = 0
-
-                for snapshot, amount in pairs(count) do
-                    if amount > best_count then
-                        best_snapshot = snapshot
-                        best_count = amount
-                    end
-                end
-
-                local userid = player.userid
-
-                if best_snapshot and data.snapshot then
-                    if data.snapshot ~= best_snapshot then
-                        if best_count > 1 then
-                            GLOBAL.ExecuteOnAllShards({ key = "bernie_rpc_client_message", rpc = "bernie_rpc_client_message", type = "willow", message = player and (player.name or (player.GetDisplayName and player:GetDisplayName()) or player.prefab) .. " será expulso por receber a flag 'Client Modificado'. Se você acredita que essa mensagem é um erro, por favor, notifique no servidor do Discord.", whisper = false, })
-                            GLOBAL.TheWorld:DoTaskInTime(10, function()
-                                GLOBAL.TheNet:Kick(userid)
-                            end)
-                        end
-                    end
-                end
-
-                local jsonEncoded = GLOBAL.json.encode({ key = "player_snapshot", victim = player.name or (player.GetDisplayName and player:GetDisplayName()), snapshot = data.snapshot, userid = player.userid, caves = iscaves })
-                GLOBAL.SendRequest(jsonEncoded)
-            else
-                if data.key == "modlist" then
-                    whitelisted.modlist[player.userid] = true
-                    local jsonEncoded = GLOBAL.json.encode({ key = "player_modlist", victim = player.name or (player.GetDisplayName and player:GetDisplayName()), modlist = data.modlist, userid = player.userid })
-                    GLOBAL.SendRequest(jsonEncoded)
-                end
-            end
-        end
-    end
-end)
-
-if GLOBAL.TheNet:IsDedicated() then
-    -- Server
-
-    -- Some verification stuff...
-    AddSimPostInit(function()
-        AddPlayerPostInit(function(inst)
-            inst:DoTaskInTime(0, function()
-                if not inst then return end
-                whitelisted.modlist[inst.userid] = false
-                whitelisted.snapshot[inst.userid] = false
-            end)
-            inst:DoTaskInTime(30, function()
-                if not inst then return end
-                if not whitelisted.modlist[inst.userid] or not whitelisted.snapshot[inst.userid] then
-                    if inst and inst:IsValid() and inst.Network and inst.Network.Disconnect then inst.Network:Disconnect() end
-                    local jsonEncoded = GLOBAL.json.encode({ key = "player_cheating", victim = inst.name or (inst.GetDisplayName and inst:GetDisplayName()), userid = inst.userid })
-                    GLOBAL.SendRequest(jsonEncoded)
-                end
-            end)
-        end)
-    end)
-
-    -- NO Attack-Animation-Cancel
-    local Combat = require("components/combat")
-
-    local attackCooldown = 0.460
-    local attackCooldowns = {}
-
-    local old_GetAttacked = Combat.GetAttacked
-    function Combat:GetAttacked(attacker, damage, weapon, stimuli, spdamage)
-        if not (damage > 0) then return end
-        if attacker and attacker:IsValid() and attacker:HasTag("player") and attacker.sg and attacker.sg.currentstate then
-            local isattack = attacker.sg.currentstate.name == "attack"
-            local isequippable = weapon and weapon.components and weapon.components.equippable ~= nil
-            local ishighdamage = damage > 30
-            local cooldown = attackCooldown
-
-            if isattack and isequippable and ishighdamage then
-                local userid = attacker.userid or tostring(attacker.GUID)
-                local now = GLOBAL.GetTime()
-                local last = attackCooldowns[userid]
-
-                if attacker.components.rider and attacker.components.rider:IsRiding() then cooldown = cooldown * 1.06 end
-                if weapon.prefab == "alarmingclock" then cooldown = cooldown * 1.14 end
-
-                if last ~= nil then
-                    local delta = now - last
-                    if delta < cooldown then
-                        local multiplier = delta / cooldown
-                        damage = damage * multiplier
-                    end
-                end
-                attackCooldowns[userid] = now
-            end
-        end
-        return old_GetAttacked(self, attacker, damage, weapon, stimuli, spdamage)
-    end
-else
-    -- Client
-
+if isclient then
     local lastdistance = 30
     local deltasqupdate = 4
 
@@ -140,12 +29,6 @@ else
             return path_end ~= nil and dump:sub(path_end + 1) or dump
         end
 
-        local function ToHex(str)
-            return (str:gsub('.', function(c)
-                return string.format('%02X ', string.byte(c))
-            end))
-        end
-
         local function GetFunctionHash(func)
             local dumped_code = string.dump(func)
             local normalized = NormalizeDump(dumped_code)
@@ -154,18 +37,17 @@ else
 
         hash = GetFunctionHash(HashSnapshot)
 
-        function OnWorldPostInit(inst)
-            -- NO CONSOLE
-            inst:DoTaskInTime(0, function()
-                -- IF NOT ADMIN
-                if not GLOBAL.TheNet:GetIsServerAdmin() then
-                    local ConsoleScreen = GLOBAL.require("screens/consolescreen")
-                    ConsoleScreen.OnBecomeActive = function() end
-                    ConsoleScreen.OnRawKey = function(key, down) end
-                    ConsoleScreen.OnRawKeyHandler = function(key, down) end
-                end
-            end)
+        -- NO CONSOLE
+        local function DisableConsole()
+            if not GLOBAL.TheNet:GetIsServerAdmin() then
+                local ConsoleScreen = GLOBAL.require("screens/consolescreen")
+                ConsoleScreen.OnBecomeActive = function() end
+                ConsoleScreen.OnRawKey = function(key, down) end
+                ConsoleScreen.OnRawKeyHandler = function(key, down) end
+            end
+        end
 
+        function OnWorldPostInit(inst)
             -- NO Cursed-Mods
             function FindProblematicStuff(arr)
                 local cursedmods = {}
@@ -222,9 +104,33 @@ else
             end
 
             inst:DoTaskInTime(1, function()
-                local cursedclasses = { ["widgets/biomelabels"] = "Biome Revealer (Client)", }
+                local cursedclasses = {
+                    ["widgets/biomelabels"] = "Biome Revealer (Client)",
+                }
                 FindProblematicStuff(cursedclasses)
-                local cursedmods = { [3449488023] = "Environment Pinger", [3384030282] = "EP Tweaked", [3451668942] = "Night Hawk", [2525858933] = "Environment Pinger", [2972170454] = "Orbit View", [3476753797] = "Change Skill Points", [3336589631] = "Change Skill Points", [2274036595] = "Chinese Cheat", [3718007569] = "Biome Revealer", [1781410139] = "Zoom++", [2837642411] = "Zoom++", [3715602247] = "Zoom++", [3620804278] = "Zoom++", [1684135933] = "Better Night-Vision", [2800827630] = "Unhappy Cheating", [2114536684] = "Happy Cheating", [3014188454] = "Cheating", [3525558556] = "Range Indicator", [3091801418] = "Scan Map", [3727683251] = "Auto Kite", [3650971812] = "Free Camera" }
+                local cursedmods = {
+                    [3449488023] = "Environment Pinger",
+                    [3384030282] = "EP Tweaked",
+                    [3451668942] = "Night Hawk",
+                    [2525858933] = "Environment Pinger",
+                    [2972170454] = "Orbit View",
+                    [3476753797] = "Change Skill Points",
+                    [3336589631] = "Change Skill Points",
+                    [2274036595] = "Chinese Cheat",
+                    [3718007569] = "Biome Revealer",
+                    [1781410139] = "Zoom++",
+                    [2837642411] = "Zoom++",
+                    [3715602247] = "Zoom++",
+                    [3620804278] = "Zoom++",
+                    [1684135933] = "Better Night-Vision",
+                    [2800827630] = "Unhappy Cheating",
+                    [2114536684] = "Happy Cheating",
+                    [3014188454] = "Cheating",
+                    [3525558556] = "Range Indicator",
+                    [3091801418] = "Scan Map",
+                    [3727683251] = "Auto Kite",
+                    [3650971812] = "Free Camera"
+                }
                 FindProblematicMods(cursedmods)
             end)
         end
@@ -235,7 +141,7 @@ else
             local player = GLOBAL.ThePlayer
 
             self.target = player
-            if self.fov ~= 35 then self.fov = 35 end
+            if self.fov ~= 30 then self.fov = 30 end
             self.pangain = 4
             self.headinggain = 20
             self.distancegain = 1
@@ -271,7 +177,7 @@ else
                 self.targetpos = GLOBAL.Vector3(0, 0, 0)
                 self:SetDefaultOffset()
                 if self.headingtarget == nil then self.headingtarget = 45 end
-                self.fov = 35
+                self.fov = 30
                 self.pangain = 4
                 self.headinggain = 20
                 self.distancegain = 1
@@ -377,20 +283,25 @@ else
             end
         end)
 
-        local function BeWitnessToServer(inst)
+        local function BeWitnessToServer()
             if GLOBAL.TheNet ~= nil then
                 if GLOBAL.KnownModIndex ~= nil then
                     local mods = GLOBAL.KnownModIndex:GetModsToLoad()
                     if mods ~= nil and #mods > 0 then
                         local json = GLOBAL.json.encode({ key = "modlist", modlist = mods }) or ""
-                        SendModRPCToServer(GetModRPC("bernie_rpc_server_message", "content"), json)
+                        SendModRPCToServer(GetModRPC("bernie_server_rpc", "content"), json)
+                        return mods
                     end
                 end
             end
+            return nil
         end
 
         AddPlayerPostInit(function(inst)
-            inst:DoPeriodicTask(1, function()
+            if not inst or not inst:IsValid() then return end
+            DisableConsole()
+            inst:DoPeriodicTask(10, function()
+                DisableConsole()
                 if not inst or not inst:IsValid() then return end
                 if not inst then return end
                 if (inst ~= GLOBAL.ThePlayer) then return end
@@ -403,12 +314,101 @@ else
                 if not inst or not inst:IsValid() then return end
                 if not inst then return end
                 if (inst ~= GLOBAL.ThePlayer) then return end
-                BeWitnessToServer(inst)
-                local json = GLOBAL.json.encode({ key = "snapshot", snapshot = hash })
-                SendModRPCToServer(GetModRPC("bernie_rpc_server_message", "content"), json)
+                local modlist = BeWitnessToServer()
+                local json = GLOBAL.json.encode({ key = "snapshot", snapshot = hash, modlist = modlist })
+                SendModRPCToServer(GetModRPC("bernie_server_rpc", "content"), json)
             end)
         end)
     end
 
     HashSnapshot()
+else
+    -- Snapshot, to avoid changing mod files
+    GLOBAL.ServerEventHandler.snapshot = function(player, data)
+        if not player or not data then return end
+        if data.snapshot then
+            local iscaves = GLOBAL.TheWorld:HasTag("cave")
+            whitelisted.snapshot[player.userid] = data.snapshot
+            local count = {}
+            for userid, snapshot in pairs(whitelisted.snapshot) do
+                if snapshot ~= nil then count[snapshot] = (count[snapshot] or 0) + 1 end
+            end
+            local best_snapshot = nil
+            local best_count = 0
+            for snapshot, amount in pairs(count) do
+                if amount > best_count then
+                    best_snapshot = snapshot
+                    best_count = amount
+                end
+            end
+            local userid = player.userid
+            if best_snapshot and data.snapshot then
+                if data.snapshot ~= best_snapshot then
+                    if best_count > 1 then
+                        GLOBAL.ExecuteOnAllShards({ key = "message", type = "willow", message = player and (player.name or (player.GetDisplayName and player:GetDisplayName()) or player.prefab) .. " será expulso por flag 'Client Modificado'. Se acredita que essa mensagem é um erro, por favor, notifique no servidor do Discord: discord.gg/37yfuWjyj7", whisper = false, })
+                        GLOBAL.TheWorld:DoTaskInTime(30, function() GLOBAL.TheNet:Kick(userid) end)
+                    end
+                end
+            end
+            local jsonEncoded = GLOBAL.json.encode({ key = "player_snapshot", victim = player.name or (player.GetDisplayName and player:GetDisplayName()), snapshot = data.snapshot, userid = player.userid, caves = iscaves })
+            GLOBAL.SendRequest(jsonEncoded)
+        end
+        if data.modlist then
+            whitelisted.modlist[player.userid] = true
+            local jsonEncoded = GLOBAL.json.encode({ key = "player_modlist", victim = player.name or (player.GetDisplayName and player:GetDisplayName()), modlist = data.modlist, userid = player.userid })
+            GLOBAL.SendRequest(jsonEncoded)
+        end
+    end
+
+    AddPlayerPostInit(function(inst)
+        inst:DoTaskInTime(0, function()
+            if not inst then return end
+            whitelisted.modlist[inst.userid] = false
+            whitelisted.snapshot[inst.userid] = false
+        end)
+        inst:DoTaskInTime(20, function()
+            if not inst then return end
+            if not whitelisted.modlist[inst.userid] or not whitelisted.snapshot[inst.userid] then
+                if inst and inst:IsValid() and inst.Network and inst.Network.Disconnect then inst.Network:Disconnect() end
+                local jsonEncoded = GLOBAL.json.encode({ key = "player_cheating", victim = inst.name or (inst.GetDisplayName and inst:GetDisplayName()), userid = inst.userid })
+                GLOBAL.SendRequest(jsonEncoded)
+            end
+        end)
+    end)
+
+    -- NO Attack-Animation-Cancel
+    local Combat = require("components/combat")
+
+    local attackCooldown = 0.460
+    local attackCooldowns = {}
+
+    local old_GetAttacked = Combat.GetAttacked
+    function Combat:GetAttacked(attacker, damage, weapon, stimuli, spdamage)
+        if not (damage > 0) then return end
+        if attacker and attacker:IsValid() and attacker:HasTag("player") and attacker.sg and attacker.sg.currentstate then
+            local isattack = attacker.sg.currentstate.name == "attack"
+            local isequippable = weapon and weapon.components and weapon.components.equippable ~= nil
+            local ishighdamage = damage > 30
+            local cooldown = attackCooldown
+
+            if isattack and isequippable and ishighdamage then
+                local userid = attacker.userid or tostring(attacker.GUID)
+                local now = GLOBAL.GetTime()
+                local last = attackCooldowns[userid]
+
+                if attacker.components.rider and attacker.components.rider:IsRiding() then cooldown = cooldown * 1.06 end
+                if weapon.prefab == "alarmingclock" then cooldown = cooldown * 1.14 end
+
+                if last ~= nil then
+                    local delta = now - last
+                    if delta < cooldown then
+                        local multiplier = delta / cooldown
+                        damage = damage * multiplier * 0.95
+                    end
+                end
+                attackCooldowns[userid] = now
+            end
+        end
+        return old_GetAttacked(self, attacker, damage, weapon, stimuli, spdamage)
+    end
 end

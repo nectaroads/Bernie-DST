@@ -53,7 +53,7 @@ module.exports = async (client, message) => {
     a: 1
   };
 
-  const messageData = { key: 'bernie_rpc_client_message', rpc: 'bernie_rpc_client_message', type: 'discord', message: truncatedMessage, name: message.member?.displayName || message.author.username, colour: colour };
+  const messageData = { key: 'message', type: 'discord', message: truncatedMessage, name: message.member?.displayName || message.author.username, colour: colour };
   messagebuffer.buffer.push(messageData);
   chathistory.push(messageData);
 

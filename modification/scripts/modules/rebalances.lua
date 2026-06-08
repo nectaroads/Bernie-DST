@@ -1,31 +1,28 @@
-print('[Bernie] Starting Another-Rebalance module')
+print('[Bernie] Starting Rebalances module')
 
-local config = GLOBAL.LoadConfig("anotherrebalance.lua")
+local config = GLOBAL.LoadConfig("rebalances.lua")
+local isclient = not GLOBAL.TheNet:IsDedicated()
+
+-- Priorities
+GLOBAL.ACTIONS.EAT.priority = GLOBAL.ACTIONS.FERTILIZE.priority + 1
 
 -- Trinket slot
 local Inv = require "widgets/inventorybar"
-
 local trinkets = { compass = true, trinket_4 = true, trinket_13 = true }
-
 Assets = Assets or {}
 table.insert(Assets, Asset("IMAGE", "images/trinket.tex"))
 table.insert(Assets, Asset("ATLAS", "images/trinket.xml"))
-
 GLOBAL.EQUIPSLOTS.TRINKET = "trinket"
 
 AddGlobalClassPostConstruct("widgets/inventorybar", "Inv", function()
     local Inv_Refresh_base = Inv.Refresh or function() return "" end
     local Inv_Rebuild_base = Inv.Rebuild or function() return "" end
-
     function Inv:LoadExtraSlots(self)
         self.bg:SetScale(1.35, 1, 1.25)
         self.bgcover:SetScale(1.35, 1, 1.25)
-
         if self.addextraslots == nil then
             self.addextraslots = 1
-
             self:AddEquipSlot(GLOBAL.EQUIPSLOTS.TRINKET, "images/trinket.xml", "trinket.tex")
-
             if self.inspectcontrol then
                 local W = 68
                 local SEP = 12
@@ -55,6 +52,7 @@ AddGlobalClassPostConstruct("widgets/inventorybar", "Inv", function()
 end)
 
 AddPrefabPostInitAny(function(inst)
+    -- More Trinket stuff
     if trinkets[inst.prefab] then
         inst:AddTag("trinket")
         if not GLOBAL.TheWorld.ismastersim then return inst end
@@ -62,6 +60,7 @@ AddPrefabPostInitAny(function(inst)
         if inst.components.equippable == nil then inst:AddComponent("equippable") end
         inst.components.equippable.equipslot = GLOBAL.EQUIPSLOTS.TRINKET
     end
+    -- Food rebalance
     if inst.components.edible ~= nil and not inst.adjusted then
         inst.adjusted = true
         if inst:HasTag("preparedfood") or inst:HasTag("driedfood") then
@@ -98,16 +97,118 @@ AddClassPostConstruct("widgets/hudcompass", function(self)
     self.inst:DoTaskInTime(0, CheckTrinketCompass)
 end)
 
-local wigfridcombos = {}
+-- Flare reveals map
+AddSimPostInit(function()
+    if not GLOBAL.TheWorld.ismastersim then return end
+    local function FlareDoReveal(data)
+        if data == nil or data.pt == nil then return end
+        local x, y, z = data.pt:Get()
+        for _, player in ipairs(GLOBAL.AllPlayers) do
+            if player ~= nil and player:IsValid() and player.player_classified ~= nil and player.player_classified.MapExplorer ~= nil then player.player_classified.MapExplorer:RevealArea(x, y, z) end
+        end
+    end
+    GLOBAL.TheWorld:ListenForEvent("miniflare_detonated", function(world, data)
+        if data and data.pt and data.igniter then
+            local x, y, z = data.pt:Get()
+            local player = data.igniter
+            if player:CanSeePointOnMiniMap(x, y, z) then FlareDoReveal(data) end
+        else
+            if data._forcereveal then
+                FlareDoReveal(data)
+            end
+        end
+    end)
+    GLOBAL.TheWorld:ListenForEvent("megaflare_detonated", function(world, data)
+        FlareDoReveal(data)
+    end)
+end)
 
+-- Aimable flares
+local FLARE_DESTINATION = AddAction("FLARE_DESTINATION", "Flare Destination", function(act)
+    local doer = act.doer
+    if doer == nil or doer.components.inventory == nil then return false end
+    local flare_stack = doer.components.inventory:FindItem(function(item) return item.prefab == "miniflare" end)
+    if flare_stack == nil then return false end
+    local pt = act:GetActionPoint()
+    if pt == nil then return false end
+    local x, y, z = pt:Get()
+    local flare = flare_stack
+    if flare_stack.components.stackable ~= nil and flare_stack.components.stackable:IsStack() then
+        flare = flare_stack.components.stackable:Get(1)
+    else
+        doer.components.inventory:RemoveItem(flare_stack)
+    end
+    flare.flare_destination = GLOBAL.Vector3(x, 0, z)
+    flare.Transform:SetPosition(doer.Transform:GetWorldPosition())
+    if flare.components.inventoryitem ~= nil then flare.components.inventoryitem:OnDropped(true) end
+    return true
+end)
+
+FLARE_DESTINATION.rmb = true
+FLARE_DESTINATION.priority = 99
+FLARE_DESTINATION.map_only = true
+FLARE_DESTINATION.map_works_on_unexplored = true
+FLARE_DESTINATION.closes_map = true
+FLARE_DESTINATION.instant = true
+
+local function HasFlare(inst)
+    local inv = inst.replica.inventory
+    return inv ~= nil and inv:Has("miniflare", 1)
+end
+
+AddPlayerPostInit(function(inst)
+    inst:DoTaskInTime(0, function()
+        if inst.components.playeractionpicker == nil then return end
+        local old_pointspecialactionsfn = inst.components.playeractionpicker.pointspecialactionsfn
+        inst.components.playeractionpicker.pointspecialactionsfn = function(inst, pos, useitem, right, usereticulepos)
+            local actions = {}
+            if old_pointspecialactionsfn ~= nil then
+                local old_actions = old_pointspecialactionsfn(inst, pos, useitem, right, usereticulepos)
+                if old_actions ~= nil then
+                    for _, action in ipairs(old_actions) do
+                        table.insert(actions, action)
+                    end
+                end
+            end
+            if right and useitem == nil and inst.checkingmapactions and HasFlare(inst) then table.insert(actions, GLOBAL.ACTIONS.FLARE_DESTINATION) end
+            return actions
+        end
+    end)
+end)
+
+AddPrefabPostInit("miniflare", function(inst)
+    if not GLOBAL.TheWorld.ismastersim then return end
+    if inst.components.stackable == nil then
+        inst:AddComponent("stackable")
+        inst.components.stackable.maxsize = GLOBAL.TUNING.STACK_SIZE_LARGEITEM
+    end
+    inst:DoTaskInTime(0, function()
+        if inst.components.burnable == nil then return end
+        local old_onignite = inst.components.burnable.onignite
+        inst.components.burnable:SetOnIgniteFn(function(inst, source, doer)
+            if inst.flare_destination ~= nil then
+                inst:ListenForEvent("animover", function(inst)
+                    if inst.flare_destination ~= nil then inst.Transform:SetPosition(inst.flare_destination.x, 0, inst.flare_destination.z) end
+                end)
+            end
+            if old_onignite ~= nil then old_onignite(inst, source, doer) end
+        end)
+    end)
+end)
+
+-- Damage Stuff
+local wigfridcombos = {}
 local bosses = { leif_sparse = { name = "Sparse Treeguard", blacklist = {} }, leif = { name = "Treeguard", blacklist = {} }, spiderqueen = { name = "Grand Spider Queen", blacklist = { spider = true, spider_warrior = true, spider_water = true, spider_dropper = true, spider_healer = true, spider_spitter = true, spider_moon = true, spider_hider = true } }, alterguardian_phase1_lunarrift = { name = "Celestial Revenant", blacklist = {} }, alterguardian_phase4_lunarrift = { name = "Celestial Scion", blacklist = {} }, wagboss_robot = { name = "W.A.R.B.O.T", blacklist = {} }, mock_dragonfly = { name = "Wilting Dragonfly", blacklist = {} }, mothergoose = { name = "The Mother Goose", blacklist = {} }, moonmaw_dragonfly = { name = "Moonmaw Dragonfly", blacklist = {} }, hoodedwidow = { name = "The Hooded Widow", blacklist = {} }, eyeofterror = { name = "Eye of Terror", blacklist = {} }, dragonfly = { name = "Dragonfly", blacklist = {} }, moose = { name = "Moose/Goose", blacklist = {} }, bearger = { name = "Bearger", blacklist = {} }, mutatedbearger = { name = "Armored Bearger", blacklist = {} }, mutateddeerclops = { name = "Crystal Deerclops", blacklist = {} }, twinofterror2 = { name = "Spazmatism", blacklist = {} }, antlion = { name = "Desert Antlion", blacklist = {} }, enraged_dragonfly = { name = "Burning Dragonfly ⚠", blacklist = {} }, twinofterror1 = { name = "Retinazor", blacklist = {} }, stalker_atrium = { name = "Ancient Fuelweaver", blacklist = {} }, sharkboi = { name = "Frostjaw", blacklist = {} }, mutatedwarg = { name = "Possessed Warg", blacklist = {} }, shadow_rook = { name = "Shadow Rook", blacklist = {} }, shadow_knight = { name = "Shadow Knight", blacklist = {} }, shadow_bishop = { name = "Shadow Bishop", blacklist = {} }, beequeen = { name = "Bee Queen", blacklist = { beeguard = true, bee = true, killerbee = true } }, crabking = { name = "Crab King", blacklist = {} }, deerclops = { name = "Deerclops", blacklist = {} }, daywalker = { name = "Nightmare Werepig", blacklist = {} }, minotaur = { name = "Ancient Guardian", blacklist = {} }, daywalker2 = { name = "Scrappy Werepig", blacklist = {} }, malbatross = { name = "Malbatross", blacklist = {} }, klaus = { name = "Klaus", blacklist = {} }, toadstool = { name = "Toadstool", blacklist = {} }, alterguardian_phase3 = { name = "Celestial Champion", blacklist = {} } }
 local aoecreatures = { tentacle = { name = "Tentacle", blacklist = {} } }
-
 for k, v in pairs(bosses) do
     aoecreatures[k] = v
 end
 
-if GLOBAL.TheNet:IsDedicated() then
+
+if isclient then
+    -- Client Side
+else
+    -- Server Side
     local EventHandler = GLOBAL.EventHandler
     -- Tools
     local function DamagePlayer(target, total_damage)
@@ -257,169 +358,154 @@ if GLOBAL.TheNet:IsDedicated() then
     local bossdamagehistory = {}
     function Combat:GetAttacked(attacker, damage, weapon, stimuli, spdamage)
         local inst = self.inst
-
-        if attacker ~= nil and attacker.components.debuffable ~= nil and attacker.components.debuffable.debuffs ~= nil and attacker.components.debuffable.debuffs.buff_firefrenzy ~= nil
-        then
-            if inst.components.burnable ~= nil and not inst.components.burnable:IsBurning() then
-                inst.components.burnable:Ignite(true, attacker, attacker)
-            end
-        end
-
-        if inst then
-            -- Walls resistance stuff
-            if damage ~= nil and inst:HasTag("wall") then
-                damage = damage * 0.1
-            end
-
-            if attacker and (attacker:HasTag("shadowcreature") or attacker:HasTag("shadow_aligned")) then
-                -- Wolf is weaker against shadow creatures
-                if inst and inst.prefab == "wolfgang" then
-                    damage = damage * 1.25
-                end
-            end
-
-            -- if it's Willow's skill, burn
-            local willowskills = { willow_shadow_flame = true, flamethrower_fx = true }
-            local iswillowskill = (weapon and willowskills[weapon.prefab]) or nil
-
-            if iswillowskill and inst.components.burnable then
-                if not inst:HasTag("player") then
-                    inst.components.burnable:Ignite(nil, attacker)
-                end
-            end
-
-            local rider = damage and damage > 0 and attacker and attacker.components.rideable and attacker.components.rideable:GetRider()
-
-            -- If a boss is being attacked
-            if inst:HasTag("epic") then
-                -- Alone players are stronger against bosses
-                if rider then
-                    if not bossdamagehistory[inst.GUID] then bossdamagehistory[inst.GUID] = {} end
-                    if not bossdamagehistory[inst.GUID][rider.GUID] then
-                        bossdamagehistory[inst.GUID][rider.GUID] = true
-                        if not bossdamagehistory[inst.GUID].size then bossdamagehistory[inst.GUID].size = 0 end
-                        bossdamagehistory[inst.GUID].size = bossdamagehistory[inst.GUID].size + 1
+        if inst and damage and damage > 0 then
+            -- On bloodfeasting, everything takes 2x damage
+            if GLOBAL.TheWorld._bloodfeasting and GLOBAL.TheWorld._bloodfeasting == true then damage = damage * 2 end
+            -- Willow burns on her basic attack skill
+            if inst and attacker then
+                if attacker.components.debuffable ~= nil and attacker.components.debuffable.debuffs ~= nil and attacker.components.debuffable.debuffs.buff_firefrenzy ~= nil then
+                    if inst.components.burnable ~= nil and not inst.components.burnable:IsBurning() then
+                        inst.components.burnable:Ignite(true, attacker, attacker)
                     end
-                    if bossdamagehistory[inst.GUID].size <= 1 then damage = damage * 1.3 end
                 end
-
-                if attacker and attacker:HasTag("player") then
-                    if not bossdamagehistory[inst.GUID] then bossdamagehistory[inst.GUID] = {} end
-                    if not bossdamagehistory[inst.GUID][attacker.GUID] then
-                        bossdamagehistory[inst.GUID][attacker.GUID] = true
-                        if not bossdamagehistory[inst.GUID].size then bossdamagehistory[inst.GUID].size = 0 end
-                        bossdamagehistory[inst.GUID].size = bossdamagehistory[inst.GUID].size + 1
-                    end
-                    if iswillowskill then
-                        inst.components.health:DoDelta(-50 * 0.3, nil, "willow_skill_bonus", nil, attacker)
+                -- Wigfrids scale damage with combos
+                if damage > 3 then
+                    if inst.prefab == "wathgrithr" then
+                        wigfridcombos[inst.GUID] = 0
                     else
+                        if inst.components and inst.components.rideable ~= nil and inst.components.rideable.rider ~= nil and inst.components.rideable.rider.prefab == "wathgrithr" then
+                            wigfridcombos[inst.GUID] = 0
+                        end
+                    end
+
+                    if attacker.prefab == "wathgrithr" then
+                        if not wigfridcombos[attacker.GUID] then wigfridcombos[attacker.GUID] = 0 end
+                        wigfridcombos[attacker.GUID] = wigfridcombos[attacker.GUID] + 0.5
+                        if wigfridcombos[attacker.GUID] > 20 then wigfridcombos[attacker.GUID] = 20 end
+
+                        local mount = nil
+                        if attacker.components.rider ~= nil then mount = attacker.components.rider:GetMount() end
+                        if mount then damage = damage * 1.25 end
+
+                        damage = damage + wigfridcombos[attacker.GUID]
+                    else
+                        if attacker.components and attacker.components.rideable ~= nil and attacker.components.rideable.rider ~= nil and attacker.components.rideable.rider.prefab == "wathgrithr" then
+                            damage = damage * 1.25
+                            if not wigfridcombos[attacker.components.rideable.rider.GUID] then wigfridcombos[attacker.components.rideable.rider.GUID] = 0 end
+                            wigfridcombos[attacker.components.rideable.rider.GUID] = wigfridcombos[attacker.components.rideable.rider.GUID] + 0.5
+                            if wigfridcombos[attacker.components.rideable.rider.GUID] > 20 then wigfridcombos[attacker.components.rideable.rider.GUID] = 20 end
+                            damage = damage + wigfridcombos[attacker.components.rideable.rider.GUID]
+                        end
+                    end
+                end
+                -- Walls resistance stuff
+                if inst:HasTag("wall") then
+                    damage = damage * 0.1
+                end
+                -- Wolf is weaker against shadow creatures
+                if attacker:HasTag("shadowcreature") or attacker:HasTag("shadow_aligned") then
+                    if inst and inst.prefab == "wolfgang" then damage = damage * 1.25 end
+                end
+                -- if it's Willow's skill, burn
+                local willowskills = { willow_shadow_flame = true, flamethrower_fx = true }
+                local iswillowskill = (weapon and willowskills[weapon.prefab]) or nil
+                if iswillowskill and inst.components.burnable then
+                    if not inst:HasTag("player") then inst.components.burnable:Ignite(nil, attacker) end
+                end
+                local rider = damage and damage > 0 and attacker and attacker.components.rideable and attacker.components.rideable:GetRider()
+                -- If a boss is being attacked
+                if inst:HasTag("epic") then
+                    -- Alone players are stronger against bosses
+                    if rider then
+                        if not bossdamagehistory[inst.GUID] then bossdamagehistory[inst.GUID] = {} end
+                        if not bossdamagehistory[inst.GUID][rider.GUID] then
+                            bossdamagehistory[inst.GUID][rider.GUID] = true
+                            if not bossdamagehistory[inst.GUID].size then bossdamagehistory[inst.GUID].size = 0 end
+                            bossdamagehistory[inst.GUID].size = bossdamagehistory[inst.GUID].size + 1
+                        end
                         if bossdamagehistory[inst.GUID].size <= 1 then damage = damage * 1.3 end
                     end
+                    if attacker:HasTag("player") then
+                        if not bossdamagehistory[inst.GUID] then bossdamagehistory[inst.GUID] = {} end
+                        if not bossdamagehistory[inst.GUID][attacker.GUID] then
+                            bossdamagehistory[inst.GUID][attacker.GUID] = true
+                            if not bossdamagehistory[inst.GUID].size then bossdamagehistory[inst.GUID].size = 0 end
+                            bossdamagehistory[inst.GUID].size = bossdamagehistory[inst.GUID].size + 1
+                        end
+                        if iswillowskill then
+                            inst.components.health:DoDelta(-50 * 0.3, nil, "willow_skill_bonus", nil, attacker)
+                        else
+                            if bossdamagehistory[inst.GUID].size <= 1 then damage = damage * 1.3 end
+                        end
+                    end
+                    if bossdamagehistory[inst.GUID] and damage >= inst.components.health.currenthealth then bossdamagehistory[inst.GUID] = nil end
                 end
-                if bossdamagehistory[inst.GUID] and damage >= inst.components.health.currenthealth then bossdamagehistory[inst.GUID] = nil end
-            end
-
-            -- If a boss is attacking
-            if attacker and attacker:HasTag("epic") then
-                -- Abby takes 50% less damage from bosses
-                if inst.prefab == "abigail" then damage = damage * 0.3 end
-            end
-
-            -- If the target is a beefalo
-            if inst.prefab == "beefalo" and damage and damage > 0 then
-                -- If has a rider
-                local rider = inst.components.rideable and inst.components.rideable:GetRider()
-                if rider then
-                    local riderdamage = damage * 0.10
-                    damage = damage * 0.90
-                    DamagePlayer(rider, riderdamage)
-                    -- Walter can't stay, no more beefalo for you buddy!
-                    if rider.prefab == "walter" then inst.components.rideable:Buck() end
+                -- If a boss is attacking
+                if attacker:HasTag("epic") then
+                    -- Abby takes 50% less damage from bosses
+                    if inst.prefab == "abigail" then damage = damage * 0.3 end
                 end
-            end
-
-            -- Extra true-damage when anything is frozen
-            if inst.components.freezable and inst.components.freezable:IsFrozen() and damage and damage > 0 then
-                local health = inst.components.health
-                if health then
-                    local bonus = math.floor(health.maxhealth * 0.1)
-                    damage = damage + bonus
-                end
-            end
-
-            -- Wigfrids scale damage with combos
-            if damage and damage > 3 then
-                if inst.prefab == "wathgrithr" then
-                    wigfridcombos[inst.GUID] = 0
-                else
-                    if inst.components and inst.components.rideable ~= nil and inst.components.rideable.rider ~= nil and inst.components.rideable.rider.prefab == "wathgrithr" then
-                        wigfridcombos[inst.GUID] = 0
+                -- If the target is a beefalo
+                if inst.prefab == "beefalo" and damage and damage > 0 then
+                    -- If has a rider
+                    local rider = inst.components.rideable and inst.components.rideable:GetRider()
+                    if rider then
+                        local riderdamage = damage * 0.10
+                        damage = damage * 0.90
+                        DamagePlayer(rider, riderdamage)
+                        -- Walter can't stay, no more beefalo for you buddy!
+                        if rider.prefab == "walter" then inst.components.rideable:Buck() end
                     end
                 end
-
-                if attacker and attacker.prefab == "wathgrithr" then
-                    if not wigfridcombos[attacker.GUID] then wigfridcombos[attacker.GUID] = 0 end
-                    wigfridcombos[attacker.GUID] = wigfridcombos[attacker.GUID] + 0.5
-                    if wigfridcombos[attacker.GUID] > 20 then wigfridcombos[attacker.GUID] = 20 end
-
-                    local mount = nil
-                    if attacker.components.rider ~= nil then mount = attacker.components.rider:GetMount() end
-                    if mount then damage = damage * 1.25 end
-
-                    damage = damage + wigfridcombos[attacker.GUID]
-                else
-                    if attacker and attacker.components and attacker.components.rideable ~= nil and attacker.components.rideable.rider ~= nil and attacker.components.rideable.rider.prefab == "wathgrithr" then
-                        damage = damage * 1.25
-                        if not wigfridcombos[attacker.components.rideable.rider.GUID] then wigfridcombos[attacker.components.rideable.rider.GUID] = 0 end
-                        wigfridcombos[attacker.components.rideable.rider.GUID] = wigfridcombos[attacker.components.rideable.rider.GUID] + 0.5
-                        if wigfridcombos[attacker.components.rideable.rider.GUID] > 20 then wigfridcombos[attacker.components.rideable.rider.GUID] = 20 end
-                        damage = damage + wigfridcombos[attacker.components.rideable.rider.GUID]
+                -- Extra true-damage when anything is frozen
+                if inst.components.freezable and inst.components.freezable:IsFrozen() and damage and damage > 0 then
+                    local health = inst.components.health
+                    if health then
+                        local bonus = math.floor(health.maxhealth * 0.1)
+                        damage = damage + bonus
                     end
                 end
-            end
-
-            if inst:HasTag("player") then
-                -- Players are weaker when starving, freezing or overheating
-                -- Players takes extra 2 true-damage if temperature is not comfy enough.
-                if inst.components.temperature ~= nil then
-                    local temp = inst.components.temperature
-                    if temp:IsOverheating() or temp:IsFreezing() then
-                        inst.components.health:DoDelta(-2, nil, "temp_bonus")
+                if inst:HasTag("player") then
+                    -- Players are weaker when starving, freezing or overheating
+                    -- Players takes extra 2 true-damage if temperature is not comfy enough.
+                    if inst.components.temperature ~= nil then
+                        local temp = inst.components.temperature
+                        if temp:IsOverheating() or temp:IsFreezing() then
+                            inst.components.health:DoDelta(-2, nil, "temp_bonus")
+                        end
+                    end
+                    -- Players takes extra 2 true-damage if starving.
+                    if inst.components.hunger ~= nil then
+                        if inst.components.hunger:GetPercent() < TUNING.HUNGRY_THRESH then
+                            inst.components.health:DoDelta(-2, nil, "hunger_bonus")
+                        end
                     end
                 end
-                -- Players takes extra 2 true-damage if starving.
-                if inst.components.hunger ~= nil then
-                    if inst.components.hunger:GetPercent() < TUNING.HUNGRY_THRESH then
-                        inst.components.health:DoDelta(-2, nil, "hunger_bonus")
+                if attacker:HasTag("player") and damage and damage > 0 then
+                    -- Wanda pocketwatch horror damage partially ignores planar entity resistance
+                    if attacker.prefab == "wanda" then
+                        local weapon = attacker.components.combat ~= nil and attacker.components.combat:GetWeapon() or nil
+                        if weapon ~= nil and weapon.prefab == "pocketwatch_weapon" and (weapon.horrordamage or 0) > 0 and inst.components.planarentity ~= nil
+                        then
+                            local wanted_damage = damage
+                            local full_pierce_damage = ((((wanted_damage / 4) + 8) ^ 2) - 64) / 4
+                            damage = wanted_damage + ((full_pierce_damage - wanted_damage) * 0.6)
+                            weapon.horrordamage = math.max((weapon.horrordamage or 0) - 1, 0)
+                        end
                     end
-                end
-            end
 
-            if attacker and attacker:HasTag("player") and damage and damage > 0 then
-                -- Wanda pocketwatch horror damage partially ignores planar entity resistance
-                if attacker.prefab == "wanda" then
-                    local weapon = attacker.components.combat ~= nil and attacker.components.combat:GetWeapon() or nil
-                    if weapon ~= nil and weapon.prefab == "pocketwatch_weapon" and (weapon.horrordamage or 0) > 0 and inst.components.planarentity ~= nil
-                    then
-                        local wanted_damage = damage
-                        local full_pierce_damage = ((((wanted_damage / 4) + 8) ^ 2) - 64) / 4
-                        damage = wanted_damage + ((full_pierce_damage - wanted_damage) * 0.6)
-                        weapon.horrordamage = math.max((weapon.horrordamage or 0) - 1, 0)
+                    local multiplier = 1
+                    -- Uncomfy players deal less damage.
+                    if attacker.components.temperature ~= nil then
+                        local temp = attacker.components.temperature
+                        if temp:IsOverheating() or temp:IsFreezing() then multiplier = multiplier * 0.9 end
                     end
+                    -- Starving players deal less damage too.
+                    if attacker.components.hunger ~= nil and attacker.components.hunger:GetPercent() < TUNING.HUNGRY_THRESH then multiplier = multiplier * 0.9 end
+                    damage = math.floor(damage * multiplier + 0.5)
                 end
-
-                local multiplier = 1
-                -- Uncomfy players deal less damage.
-                if attacker.components.temperature ~= nil then
-                    local temp = attacker.components.temperature
-                    if temp:IsOverheating() or temp:IsFreezing() then multiplier = multiplier * 0.9 end
-                end
-                -- Starving players deal less damage too.
-                if attacker.components.hunger ~= nil and attacker.components.hunger:GetPercent() < TUNING.HUNGRY_THRESH then multiplier = multiplier * 0.9 end
-                damage = math.floor(damage * multiplier + 0.5)
             end
         end
-
         return old_GetAttacked(self, attacker, damage, weapon, stimuli, spdamage)
     end
 
@@ -776,26 +862,249 @@ if GLOBAL.TheNet:IsDedicated() then
         end)
     end)
 
-    -- Change loottable
-    local changeloot = {
-        walrus = { { 'meat', 1.00 }, { 'blowdart_pipe', 0.5 }, { 'walrushat', 0.50 }, { 'walrus_tusk', 0.5 }, { 'walrus_tusk', 0.5 } },
-        slurtle = { { 'slurtleslime', 1.00 }, { 'slurtle_shellpieces', 0.80 }, { 'slurtleslime', 0.80 }, { 'slurtlehat', 0.30 } },
-        snurtle = { { 'slurtleslime', 1.00 }, { 'slurtle_shellpieces', 0.80 }, { 'slurtleslime', 0.80 }, { 'armorsnurtleshell', 0.80 } },
-        lightninggoat = { { 'meat', 1.00 }, { 'meat', 1.00 }, { 'lightninggoathorn', 0.6 }, { 'goatmilk', 0.6 } },
-        chargedlightninggoat = { { 'meat', 1.00 }, { 'meat', 1.00 }, { 'lightninggoathorn', 1 }, { 'goatmilk', 1 }, { 'goatmilk', 0.6 } },
-        krampus = { { 'monstermeat', 1.0 }, { 'charcoal', 1.0 }, { 'charcoal', 0.1 }, { 'steelwool', 0.1 }, { 'gears', 0.1 }, { 'livinglog', 0.1 }, { 'marble', 0.1 }, { 'krampus_sack', .01 } }
-    }
+    -- Oceantree spawns at the world start
+    local function GetDistanceFromLand(map, x, z, maxcheck)
+        local dist = 0
+        while dist <= maxcheck do
+            local found_land = false
+            for angle = 0, 360, 20 do
+                local rad = angle * GLOBAL.DEGREES
+                local px = x + math.cos(rad) * dist
+                local pz = z + math.sin(rad) * dist
+                local tile = map:GetTileAtPoint(px, 0, pz)
+                if not GLOBAL.IsOceanTile(tile) and tile ~= GLOBAL.WORLD_TILES.IMPASSABLE then
+                    found_land = true
+                    break
+                end
+            end
+            if found_land then return dist end
+            dist = dist + 2
+        end
+        return maxcheck
+    end
 
-    for prefab, loot in pairs(changeloot) do
-        AddPrefabPostInit(prefab, function(inst)
-            GLOBAL.SetSharedLootTable(prefab, loot)
-            if inst.components.lootdropper ~= nil then
-                inst.components.lootdropper:SetLoot({})
-                inst.components.lootdropper:SetChanceLootTable(nil)
-                inst.components.lootdropper:SetChanceLootTable(prefab)
+    local function FindOceanNearPoint(x, z)
+        local map = GLOBAL.TheWorld.Map
+        local candidates = {}
+        local MIN_COAST_DISTANCE = 10
+        local MAX_COAST_DISTANCE = 22
+        for radius = 20, 100, 4 do
+            for angle = 0, 360, 12 do
+                local rad = angle * GLOBAL.DEGREES
+                local px = x + math.cos(rad) * radius
+                local pz = z + math.sin(rad) * radius
+                local tile = map:GetTileAtPoint(px, 0, pz)
+                if GLOBAL.IsOceanTile(tile) then
+                    local coastdist = GetDistanceFromLand(map, px, pz, 40)
+                    if coastdist >= MIN_COAST_DISTANCE and coastdist <= MAX_COAST_DISTANCE then
+                        table.insert(candidates, { x = px, z = pz, })
+                    end
+                end
+            end
+        end
+        if #candidates > 0 then return candidates[math.random(#candidates)] end
+    end
+
+    local function SpawnMandrakeForestOceanTree(inst)
+        if inst._mandrakeforest_oceantree_spawned then return end
+        local map = GLOBAL.TheWorld.Map
+        local w, h = map:GetSize()
+        local radius = math.max(w, h) * 2
+        local mandrakes = GLOBAL.TheSim:FindEntities(0, 0, 0, radius, nil, { "INLIMBO" })
+        local valid_mandrakes = {}
+        for _, ent in ipairs(mandrakes) do
+            if ent.prefab == "mandrake_planted" then table.insert(valid_mandrakes, ent) end
+        end
+        if #valid_mandrakes <= 0 then return end
+        local mandrake = valid_mandrakes[math.random(#valid_mandrakes)]
+        local x, y, z = mandrake.Transform:GetWorldPosition()
+        local pos = FindOceanNearPoint(x, z)
+        if pos ~= nil then
+            local tree = GLOBAL.SpawnPrefab("oceantree_pillar")
+            if tree ~= nil then
+                tree.Transform:SetPosition(pos.x, 0, pos.z)
+                inst._mandrakeforest_oceantree_spawned = true
+            end
+        end
+    end
+
+    AddPrefabPostInit("world", function(inst)
+        local _OnSave = inst.OnSave
+        local _OnLoad = inst.OnLoad
+        inst.OnSave = function(inst, data)
+            if _OnSave ~= nil then _OnSave(inst, data) end
+            data.mandrakeforest_oceantree_spawned = inst._mandrakeforest_oceantree_spawned
+        end
+        inst.OnLoad = function(inst, data)
+            if _OnLoad ~= nil then _OnLoad(inst, data) end
+            if data ~= nil then inst._mandrakeforest_oceantree_spawned = data.mandrakeforest_oceantree_spawned end
+        end
+        inst:DoTaskInTime(1, SpawnMandrakeForestOceanTree)
+    end)
+
+    -- Frogs
+    AddBrainPostInit("frogbrain", function(brain)
+        local root = brain.bt ~= nil and brain.bt.root or nil
+        if root == nil or root.children == nil then return end
+        local gohome = root.children[4]
+        if gohome ~= nil and gohome.children ~= nil and gohome.children[1] ~= nil then
+            gohome.children[1].fn = function() return GLOBAL.TheWorld.state.isday or GLOBAL.TheWorld.state.iswinter end
+        end
+        local wander = root.children[5]
+        if wander ~= nil and wander.children ~= nil and wander.children[1] ~= nil then
+            wander.children[1].fn = function()
+                if brain.inst.islunar then return true end
+                return GLOBAL.TheWorld.state.isdusk or GLOBAL.TheWorld.state.isnight
+            end
+        end
+    end)
+
+    -- Ponds to frogs
+    AddPrefabPostInit("pond", function(inst)
+        inst.dayspawn = false
+        inst:DoTaskInTime(0, function(inst)
+            if inst.components.childspawner ~= nil then
+                inst.components.childspawner:StopSpawning()
+                if not GLOBAL.TheWorld.state.isday and not GLOBAL.TheWorld.state.iswinter then inst.components.childspawner:StartSpawning() end
+            end
+        end)
+    end)
+
+    -- Make some annoying objects burnable
+    AddPrefabPostInitAny(function(inst)
+        if not GLOBAL.TheWorld.ismastersim then return end
+        inst:DoTaskInTime(0, function()
+            local spamitems = { stinger = true }
+            -- Spam items
+            if spamitems[inst.prefab] then
+                if inst.components.burnable == nil then inst:AddComponent("burnable") end
+                if inst.components.propagator == nil then inst:AddComponent("propagator") end
+                inst:AddTag("canlight")
+            end
+            -- Tools
+            if inst.components.finiteuses ~= nil then
+                if inst.components.fuel == nil then inst:AddComponent("fuel") end
+                inst.components.fuel.fueltype = GLOBAL.FUELTYPE.BURNABLE
+                local uses = inst.components.finiteuses.total or 100
+                if uses <= 5 then
+                    inst.components.fuel.fuelvalue = GLOBAL.TUNING.TINY_FUEL
+                elseif uses <= 25 then
+                    inst.components.fuel.fuelvalue = GLOBAL.TUNING.SMALL_FUEL
+                elseif uses <= 100 then
+                    inst.components.fuel.fuelvalue = GLOBAL.TUNING.MED_FUEL
+                else
+                    inst.components.fuel.fuelvalue = GLOBAL.TUNING.LARGE_FUEL
+                end
+            end
+        end)
+    end)
+
+    -- Anything rottable is a fertilizer
+    AddPrefabPostInitAny(function(inst)
+        if inst.components.perishable ~= nil and inst.components.edible == nil then return end
+        inst:DoTaskInTime(0, function()
+            if inst.components.perishable ~= nil then
+                if inst.components.fertilizer == nil then inst:AddComponent("fertilizer") end
+                local perish = inst.components.perishable.perishtime or 0
+                if perish <= GLOBAL.TUNING.PERISH_FAST then
+                    inst.components.fertilizer.fertilizervalue = 2
+                elseif perish <= GLOBAL.TUNING.PERISH_MED then
+                    inst.components.fertilizer.fertilizervalue = 5
+                else
+                    inst.components.fertilizer.fertilizervalue = 10
+                end
+            end
+        end)
+    end)
+
+    -- Gnome Stuff
+    local function OnGnomeEscape(inst, owner)
+        if owner == nil or owner.components.inventory == nil then return end
+        local dice = math.random(0, 2)
+        if dice == 0 then return end
+        inst:DoTaskInTime(0, function()
+            if inst.components.inventoryitem == nil then return end
+            local realowner = inst.components.inventoryitem.owner
+            if realowner == nil or realowner.components.inventory == nil then return end
+            if realowner.SoundEmitter then realowner.SoundEmitter:PlaySound("yotb_2021/common/hitching_post/unhitching") end
+            if realowner.sg and (realowner.components.rider == nil or not realowner.components.rider:IsRiding()) then realowner.sg:GoToState("slip") end
+            realowner.components.inventory:DropItem(inst, true, true)
+            local dice2 = math.random(0, 2)
+            if dice2 == 1 then
+                local gnomequotes = config.gnomeacidjokes
+                local quote = gnomequotes[math.random(#gnomequotes)]
+                if quote ~= nil and inst.components.talker ~= nil then inst.components.talker:Say(quote) end
+            end
+            if dice == 2 then
+                local x, y, z = realowner.Transform:GetWorldPosition()
+                local theta = math.random() * GLOBAL.TWOPI
+                local radius = math.random(6, 12)
+                local offset = GLOBAL.FindWalkableOffset(GLOBAL.Vector3(x, y, z), theta, radius, 8, true)
+                if offset ~= nil then
+                    inst.Transform:SetPosition(x + offset.x, 0, z + offset.z)
+                    local effect = GLOBAL.SpawnPrefab("shadow_merm_spawn_poof_fx")
+                    if effect then effect.Transform:SetPosition(x + offset.x, 0, z + offset.z) end
+                end
             end
         end)
     end
+
+    AddPrefabPostInit("trinket_4", function(inst)
+        if not GLOBAL.TheWorld.ismastersim then return end
+        inst:ListenForEvent("onputininventory", OnGnomeEscape)
+    end)
+
+    AddPrefabPostInit("trinket_13", function(inst)
+        if not GLOBAL.TheWorld.ismastersim then return end
+        inst:ListenForEvent("onputininventory", OnGnomeEscape)
+    end)
+
+    local function OnPigmanPostInit(inst)
+        inst:DoTaskInTime(0, function()
+            -- Pigs can have special names
+            if not inst or inst:HasTag("customname") or not inst.components.named then return end
+            if not (inst and inst.components.named) then return end
+            local dice = math.random(0, 9)
+            if dice <= 2 then inst.components.named:SetName((config and config.pignames[math.random(#config.pignames)]) or "undefined") end
+            inst:AddTag("customname")
+            inst:WatchWorldState("phase", function(inst, phase)
+                -- Pigs can eventually build a new home
+                if phase == "dusk" then
+                    local function PigHasHome(inst) return inst.components.homeseeker ~= nil and inst.components.homeseeker.home ~= nil and inst.components.homeseeker.home:IsValid() end
+                    local function GivePigNewHouse(inst)
+                        if PigHasHome(inst) then return end
+                        if math.random() > 0.1 then return end
+                        if inst.sg ~= nil then inst.sg:GoToState("refuse") end
+                        inst:DoTaskInTime(0.7, function(inst)
+                            if not inst or inst.components.health == nil then return end
+                            local x, y, z = inst.Transform:GetWorldPosition()
+                            local rot = inst.Transform:GetRotation() * GLOBAL.DEGREES
+                            x = x - math.sin(rot) * 1.5
+                            z = z - math.cos(rot) * 1.5
+                            local dust = GLOBAL.SpawnPrefab("cavein_dust_low")
+                            if dust ~= nil then dust.Transform:SetPosition(x, y, z) end
+                            inst.SoundEmitter:PlaySound("dontstarve/common/place_structure_straw")
+                            local house = GLOBAL.SpawnPrefab("pighouse")
+                            if house == nil then return end
+                            house.Transform:SetPosition(x, y, z)
+                            if house.components.spawner ~= nil then
+                                if house.components.spawner.child ~= nil then
+                                    house.components.spawner.child:Remove()
+                                    house.components.spawner.child = nil
+                                end
+                                house.components.spawner:TakeOwnership(inst)
+                            end
+                            if inst.components.homeseeker == nil then inst:AddComponent("homeseeker") end
+                            inst.components.homeseeker:SetHome(house)
+                        end)
+                    end
+                    GivePigNewHouse(inst)
+                end
+            end)
+        end)
+    end
+
+    AddPrefabPostInit("pigman", OnPigmanPostInit)
 end
 
 -- Change Stacks
@@ -978,99 +1287,3 @@ for prefab, swap in pairs(shieldprefabs) do
         inst.components.rechargeable:SetOnChargedFn(OnCharged)
     end)
 end
-
--- New recipes
-env.AddRecipe2("piggyback", { GLOBAL.Ingredient("pigskin", 6), GLOBAL.Ingredient("silk", 6), GLOBAL.Ingredient("rope", 4) }, GLOBAL.TECH.SCIENCE_TWO)
-env.AddRecipe2("compass", { GLOBAL.Ingredient("goldnugget", 1), GLOBAL.Ingredient("marble", 1) }, GLOBAL.TECH.SCIENCE_TWO)
-env.AddRecipe2("fence_rotator", { GLOBAL.Ingredient("spear", 1), GLOBAL.Ingredient("marble", 2), GLOBAL.Ingredient("rope", 1) })
-env.AddRecipe2("wathgrithr_shield", { GLOBAL.Ingredient("goldnugget", 3), GLOBAL.Ingredient("beefalowool", 3) }, GLOBAL.TECH.NONE, { builder_skill = "wathgrithr_arsenal_shield_1" })
-
--- Tuning
-TUNING.MONKEY_TOKEN_COUNTS.LEVEL_1 = 0
-TUNING.MONKEY_TOKEN_COUNTS.LEVEL_2 = 2
-TUNING.MONKEY_TOKEN_COUNTS.LEVEL_3 = 3
-TUNING.MONKEY_TOKEN_COUNTS.LEVEL_4 = 5
-TUNING.WES_DAMAGE_MULT = 1
-TUNING.WES_WORK_MULTIPLIER = 1
-TUNING.BALLOON_DAMAGE = 20
-TUNING.BALLOON_ATTACK_RANGE = 3
-TUNING.WONKEY_WALK_SPEED_PENALTY = 1.1
-TUNING.WONKEY_SPEED_BONUS = 2.5
-TUNING.WONKEY_TIME_TO_RUN = 2
-TUNING.WONKEY_RUN_HUNGER_RATE_MULT = 1.1
-TUNING.WILLOW_LUNAR_FIRE_COOLDOWN = 16
-TUNING.WX78_MIN_MOISTURE_DAMAGE = -1
-TUNING.WX78_MOVESPEED_CHIPBOOSTS = { 0.00, 0.1, 0.2, 0.3 }
-TUNING.WOLFGANG_SANITY_NIGHT_DRAIN = 1.5
-TUNING.WOLFGANG_SANITY_NIGHT_DRAIN_SMALL = 1.25
-
-TUNING.BEEFALO_HUNGER_RATE = TUNING.BEEFALO_HUNGER_RATE * 0.8
-TUNING.BEEFALO_DOMESTICATION_ATTACKED_BY_PLAYER_DOMESTICATION = 0
-TUNING.BEEFALO_DOMESTICATION_ATTACKED_DOMESTICATION = 0
-TUNING.BEEFALO_DOMESTICATION_LOSE_DOMESTICATION = 0
-TUNING.BEEFALO_DOMESTICATION_ATTACKED_OBEDIENCE = 0
-
-TUNING.OCEANTREE_STAGES_TO_SUPERTALL = 2
-TUNING.MAX_FIRE_DAMAGE_PER_SECOND = 160
-
-TUNING.GRUEDAMAGE = 9999
-TUNING.WALRUS_REGEN_PERIOD = TUNING.WALRUS_REGEN_PERIOD * 0.5
-TUNING.CRAWLINGHORROR_HEALTH = 500
-TUNING.CRAWLINGHORROR_DAMAGE = 60
-TUNING.CRAWLINGHORROR_ATTACK_PERIOD = 1.5
-TUNING.TERRORBEAK_SPEED = 9
-TUNING.BEEGUARD_HEALTH = 140
-TUNING.BEEGUARD_DASH_SPEED = 7
-TUNING.BEEGUARD_SPEED = 4
-TUNING.LAVAE_HEALTH = 140
-
-TUNING.SHADOW_ROOK.HIT_RANGE = 2.5
-TUNING.SHADOW_KNIGHT.ATTACK_RANGE_LONG = 3
-TUNING.TOADSTOOL_HEALTH = 32500
-TUNING.TOADSTOOL_MUSHROOMBOMB_RADIUS = 3
-TUNING.TOADSTOOL_SPOREBOMB_HIT_RANGE = 3
-TUNING.TOADSTOOL_SPORECLOUD_RADIUS = 4
-TUNING.TOADSTOOL_SPORECLOUD_LIFETIME = 20
-TUNING.TOADSTOOL_MUSHROOMSPROUT_CHOPS = 6
-TUNING.TOADSTOOL_MUSHROOMSPROUT_CD = 40
-TUNING.CRABKING_CLAW_ATTACKRANGE = 3.6
-TUNING.CRABKING_CLAW_BOATDAMAGE = 20
-TUNING.CRABKING_GEYSER_BOATDAMAGE = 5
-TUNING.CRABKING_REGEN = 25
-TUNING.DEERCLOPS_HEALTH = 8000
-TUNING.DEERCLOPS_ATTACK_PERIOD = 3
-TUNING.DRAGONFLY_ENRAGE_DURATION = 30
-TUNING.DRAGONFLY_FIRE_DAMAGE = 200
-TUNING.DRAGONFLY_ATTACK_RANGE = 5
-TUNING.DRAGONFLY_SPEED = 4
-TUNING.DRAGONFLY_FIRE_SPEED = 5
-TUNING.DRAGONFLY_HIT_RANGE = 5
-TUNING.DRAGONFLY_FIRE_HIT_RANGE = 5
-TUNING.BEEQUEEN_DAMAGE = 200
-TUNING.BEEQUEEN_SPEED = 3
-TUNING.BEEQUEEN_ATTACK_PERIOD = 2
-TUNING.BEEQUEEN_ATTACK_RANGE = 5
-TUNING.BEEQUEEN_HIT_RANGE = 5
-TUNING.BEEQUEEN_SPAWNGUARDS_CD = { 28, 26, 24, 22 }
-TUNING.BEEQUEEN_FOCUSTARGET_CD = { 120, 60, 32, 24 }
-TUNING.NO_BOSS_TIME = 16
-
-TUNING.HEATROCK_NUMUSES = TUNING.HEATROCK_NUMUSES * 3
-TUNING.HEAT_ROCK_CARRIED_BONUS_HEAT_FACTOR = 0.6
-TUNING.EFFIGY_HEALTH_PENALTY = 0
-TUNING.PIGGYBACK_SPEED_MULT = 1
-TUNING.FISHINGROD_USES = 10
-TUNING.FISHING_MINWAIT = 1
-TUNING.FISHING_MAXWAIT = 10
-TUNING.OCEANFISH_MIN_INTEREST_TO_BITE = 0.1
-TUNING.FENCE_ROTATOR_DAMAGE = 51
-TUNING.FENCE_ROTATOR_USES = 250
-TUNING.WATHGRITHR_SHIELD_ARMOR = 500
-
-TUNING.BUILD_DISTANCE = 0.6
-
-TUNING.DAY_HEAT = 12
-TUNING.NIGHT_COLD = -14
-TUNING.SUMMER_RAIN_TEMP = -16
-TUNING.MIN_ENTITY_TEMP = -32.5
-TUNING.MAX_ENTITY_TEMP = 123.5

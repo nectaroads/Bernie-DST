@@ -23,8 +23,8 @@ app.post('/bernie', (req, res) => {
   const bodyStr = Object.entries(req.body)
     .map(([k, v]) => `${k}: ${formatValue(v)}`)
     .join(', ');
-  if (req.body.key != 'update') print(`[Request] Express: Web request`);
-  if (req.body.key != 'update') print(`[Log] Body: ${req.body.key}: ${bodyStr}`);
+  if (req.body.key != 'update' && req.body.key != 'server_tps') print(`[Request] Express: Web request`);
+  if (req.body.key != 'update' && req.body.key != 'server_tps') print(`[Log] Body: ${req.body.key}: ${bodyStr}`);
   if (dontstarveHandlers[req.body.key]) return dontstarveHandlers[req.body.key](req, res);
   return res.status(200).json({ ok: true });
 });

@@ -1,6 +1,6 @@
 const { getClientChannel } = require('../../discord');
 const { rollDice } = require('../../tools');
-const { dotenv } = require('../../variables');
+const { dotenv, dontstarveserver } = require('../../variables');
 
 module.exports = async (req, res) => {
   const body = req.body;
@@ -15,5 +15,7 @@ module.exports = async (req, res) => {
   channel.setTopic(`O servidor tem ${body.emptyspace - 1}/${body.maxplayers} players online - Sobreviva para contar histórias aos que lutarem depois de você!`).catch(error => {
     print(`[Error] Application error: ${error}`);
   });
+  dontstarveserver.playersonline = players.length - 1;
+  dontstarveserver.maxplayers = body.maxplayers;
   return res.status(200).json({ ok: true });
 };

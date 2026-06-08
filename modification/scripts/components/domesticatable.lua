@@ -124,14 +124,10 @@ local function DoDeltaDomestication(self, delta, doer)
 
     local owner = self.inst:GetBeefBellOwner()
     if owner and delta > 0 then
-        print("Owner Found")
         local hat = owner.components.inventory and owner.components.inventory:GetEquippedItem(EQUIPSLOTS.HEAD)
-        -- Beefalo hat stuff
         if hat and hat.prefab == "beefalohat" then delta = delta * 1.1 end
-        -- Hunger stuff
         if self.inst.components.hunger then
             local hunger = self.inst.components.hunger.current or 0
-            print("Is fed: Multiplying by " .. (1 + math.floor(hunger / 50) * 0.05))
             delta = delta * (1 + math.floor(hunger / 50) * 10)
         end
     end
