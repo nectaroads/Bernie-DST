@@ -509,14 +509,24 @@ else
         return old_GetAttacked(self, attacker, damage, weapon, stimuli, spdamage)
     end
 
+    local function OnPlayerItemLose(inst, data)
+        local backpack = data and data.item
+        if not (backpack and backpack:HasTag("backpack")) then return end
+        backpack:DoTaskInTime(0, function()
+            if not backpack or not backpack:IsValid() then return end
+            if backpack.components.container ~= nil and backpack.components.container:IsOpen() then backpack.components.container:Close(inst) end
+        end)
+    end
+
     -- Better backpacks
     local function OnPlayerItemGet(inst, data)
-        if not (data.item and data.item:HasTag("backpack")) then return end
+        local backpack = data.item
+        if not (backpack and backpack:HasTag("backpack")) or not backpack.components.container then return end
         local equippedBackpack = inst.components.inventory:GetEquippedItem(GLOBAL.EQUIPSLOTS.BODY)
         if equippedBackpack and not equippedBackpack:HasTag("backpack") then equippedBackpack = nil end
-        if equippedBackpack and data.item then
+        if equippedBackpack and backpack then
             inst.components.inventory:DropItem(equippedBackpack, true, true)
-            inst.components.inventory:Equip(data.item)
+            inst.components.inventory:Equip(backpack)
         end
         local backpackCount = 0
         for _, item in pairs(inst.components.inventory.itemslots) do
@@ -631,6 +641,8 @@ else
     AddSimPostInit(function()
         AddPlayerPostInit(function(inst)
             inst:ListenForEvent("itemget", OnPlayerItemGet)
+            inst:ListenForEvent("itemlose", OnPlayerItemLose)
+
             inst:ListenForEvent("equip", OnPlayerEquip)
             inst:ListenForEvent("respawnfromghost", OnEntityRevive)
             inst:ListenForEvent("respawnfromcorpse", OnEntityRevive)
@@ -672,6 +684,18 @@ else
         return nil
     end
 
+    local function OpenBackpackForOwner(inst)
+        local owner = inst.components.inventoryitem ~= nil and inst.components.inventoryitem.owner or nil
+        if owner == nil or owner.components.inventory == nil then return end
+        if inst.components.equippable ~= nil and inst.components.equippable:IsEquipped() then return end
+        if inst.components.container ~= nil then inst.components.container:Open(owner) end
+    end
+
+    local function CloseBackpackForOwner(inst)
+        local owner = inst.components.container ~= nil and inst.components.container.opener or nil
+        if owner ~= nil then inst.components.container:Close(owner) end
+    end
+
     local function OnBackpackPostInit(inst)
         if not inst.components.inventoryitem then inst:AddComponent("inventoryitem") end
         inst.components.inventoryitem.cangoincontainer = true
@@ -692,6 +716,15 @@ else
                 owner.components.container:DropItem(inst, true, true)
             end)
         end)
+        if not inst._patched then
+            inst:ListenForEvent("onputininventory", function(inst)
+                inst:DoTaskInTime(0, OpenBackpackForOwner)
+            end)
+            inst:ListenForEvent("ondropped", function(inst)
+                CloseBackpackForOwner(inst)
+            end)
+            inst._patched = true
+        end
     end
 
     local backpackPrefabs = { "backpack", "piggyback", "krampus_sack", "icepack", "seedpouch", "spicepack", "candybag" }
@@ -1287,3 +1320,36 @@ for prefab, swap in pairs(shieldprefabs) do
         inst.components.rechargeable:SetOnChargedFn(OnCharged)
     end)
 end
+
+-- Better Backpacks (BOTH)
+GLOBAL.STRINGS.ACTIONS.OPEN_BACKPACK_CONTAINER = "Open"
+
+local OPEN_BACKPACK_CONTAINER = AddAction("OPEN_BACKPACK_CONTAINER", "Open", function(act)
+    local doer = act.doer
+    local target = act.target
+    if target == nil or doer == nil then return false end
+    if not target:HasTag("backpack") then return false end
+    if target.components.equippable ~= nil and target.components.equippable:IsEquipped() then return false end
+    if target.components.inventoryitem ~= nil and target.components.inventoryitem.owner ~= nil then return false end
+    if target.components.container == nil then return false end
+    target.components.container:Open(doer)
+    return true
+end)
+
+OPEN_BACKPACK_CONTAINER.rmb = true
+OPEN_BACKPACK_CONTAINER.priority = 3
+
+AddStategraphActionHandler("wilson", GLOBAL.ActionHandler(GLOBAL.ACTIONS.OPEN_BACKPACK_CONTAINER, "doshortaction"))
+AddStategraphActionHandler("wilson_client", GLOBAL.ActionHandler(GLOBAL.ACTIONS.OPEN_BACKPACK_CONTAINER, "doshortaction"))
+
+local function CanOpenGroundBackpack(inst)
+    if inst == nil or not inst:HasTag("backpack") then return false end
+    if inst.replica.container == nil then return false end
+    if inst.replica.inventoryitem ~= nil and inst.replica.inventoryitem:IsHeld() then return false end
+    if inst.replica.equippable ~= nil and inst.replica.equippable:IsEquipped() then return false end
+    return true
+end
+
+AddComponentAction("SCENE", "container", function(inst, doer, actions, right)
+    if right and CanOpenGroundBackpack(inst) then table.insert(actions, GLOBAL.ACTIONS.OPEN_BACKPACK_CONTAINER) end
+end)
