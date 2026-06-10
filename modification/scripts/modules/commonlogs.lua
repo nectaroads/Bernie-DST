@@ -26,7 +26,7 @@ else
         if not data then return end
         local victim = ent or (data and data.inst) or data or nil
         local cause = data.afflicter or data.cause or data.source or data.instigator or nil
-        local causeuserid = cause.userid
+        local causeuserid = cause and cause.userid or nil
         local users = GLOBAL.GetUsers()
         if not victim then return end
         if victim:HasTag("epic") then

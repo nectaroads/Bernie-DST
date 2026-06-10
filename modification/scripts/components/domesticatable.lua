@@ -128,7 +128,7 @@ local function DoDeltaDomestication(self, delta, doer)
         if hat and hat.prefab == "beefalohat" then delta = delta * 1.1 end
         if self.inst.components.hunger then
             local hunger = self.inst.components.hunger.current or 0
-            delta = delta * (1 + math.floor(hunger / 50) * 10)
+            delta = delta * (1 + math.floor(hunger / 50) * 0.1)
         end
     end
 

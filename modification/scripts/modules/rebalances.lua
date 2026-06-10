@@ -447,11 +447,15 @@ else
                 end
                 -- If the target is a beefalo
                 if inst.prefab == "beefalo" and damage and damage > 0 then
+                    -- If its pudgy
+                    if inst.components.domesticatable and inst.components.domesticatable:IsDomesticated() and inst.tendency == TENDENCY.PUDGY then
+                        damage = damage * 0.8
+                    end
                     -- If has a rider
                     local rider = inst.components.rideable and inst.components.rideable:GetRider()
                     if rider then
-                        local riderdamage = damage * 0.10
-                        damage = damage * 0.90
+                        local riderdamage = damage * 0.20
+                        damage = damage * 0.80
                         DamagePlayer(rider, riderdamage)
                         -- Walter can't stay, no more beefalo for you buddy!
                         if rider.prefab == "walter" then inst.components.rideable:Buck() end
@@ -517,6 +521,16 @@ else
             if backpack.components.container ~= nil and backpack.components.container:IsOpen() then backpack.components.container:Close(inst) end
         end)
     end
+
+    -- Nerf Heatrock (faster update)
+    AddPrefabPostInit("heatrock", function(inst)
+        if not GLOBAL.TheWorld.ismastersim then return end
+        if inst.components.temperature == nil then return end
+        local _OnUpdate = inst.components.temperature.OnUpdate
+        inst.components.temperature.OnUpdate = function(self, dt, ...)
+            return _OnUpdate(self, dt * 2, ...)
+        end
+    end)
 
     -- Better backpacks
     local function OnPlayerItemGet(inst, data)
@@ -716,15 +730,6 @@ else
                 owner.components.container:DropItem(inst, true, true)
             end)
         end)
-        if not inst._patched then
-            inst:ListenForEvent("onputininventory", function(inst)
-                inst:DoTaskInTime(0, OpenBackpackForOwner)
-            end)
-            inst:ListenForEvent("ondropped", function(inst)
-                CloseBackpackForOwner(inst)
-            end)
-            inst._patched = true
-        end
     end
 
     local backpackPrefabs = { "backpack", "piggyback", "krampus_sack", "icepack", "seedpouch", "spicepack", "candybag" }
@@ -733,27 +738,81 @@ else
         AddPrefabPostInit(prefab, OnBackpackPostInit)
     end
 
-    -- Insulation
-    local warmitems = { torch = 60, lighter = 60, firestaff = 60, amulet = 60 }
-    local colditems = { icestaff = 60, blueamulet = 60, armor_voidcloth = 40, voidclothhat = 40, voidcloth_umbrella = 40, voidcloth_scythe = 40, voidcloth_boomerang = 40, shadow_battleaxe = 40, armor_sanity = 40, dreadstonehat = 40, armordreadstone = 40, nightsword = 40 }
+    -- Item changes
+    local itemschanges = {
+        insulationcold = { icestaff = 60, blueamulet = 60, armor_voidcloth = 40, voidclothhat = 40, voidcloth_umbrella = 40, voidcloth_scythe = 40, voidcloth_boomerang = 40, shadow_battleaxe = 40, armor_sanity = 40, dreadstonehat = 40, armordreadstone = 40, nightsword = 40 },
+        insulationwarm = { torch = 60, lighter = 60, firestaff = 60, amulet = 60 },
+        armor = { armorgrass = { absorb = .40, durability = 160 }, armorwood = { absorb = .55, durability = 320 }, armor_bramble = { absorb = .55, durability = 530 }, armorruins = { absorb = .70, durability = 1260 }, armordragonfly = { absorb = .70, durability = 950 }, armormarble = { absorb = .70, durability = 740 }, armor_sanity = { absorb = .70, durability = 525 }, armordreadstone = { absorb = .70, durability = 840 }, armorsnurtleshell = { absorb = .70, durability = 740 }, armor_voidcloth = { absorb = .85, durability = 830 }, armor_lunarplant = { absorb = .85, durability = 830 }, armorwagpunk = { absorb = .85, durability = 730 }, woodcarvedhat = { absorb = .40, durability = 270 }, footballhat = { absorb = .40, durability = 320 }, wathgrithrhat = { absorb = .55, durability = 530 }, wathgrithr_improvedhat = { absorb = .55, durability = 700 }, eyemaskhat = { absorb = .55, durability = 320 }, slurtlehat = { absorb = .55, durability = 530 }, cookiecutterhat = { absorb = .55, durability = 530 }, dreadstonehat = { absorb = .70, durability = 840 }, hivehat = { absorb = .70, durability = 950 }, skeletonhat = { absorb = .70, durability = 950 }, ruinshat = { absorb = .70, durability = 840 }, wagpunkhat = { absorb = .85, durability = 730 }, lunarplanthat = { absorb = .85, durability = 830 }, voidclothhat = { absorb = .85, durability = 830 } },
+        durability = {},
+        walkspeed = { diviningrod = 1.20 },
+        damage = { spear = { damage = 40 }, cutless = { damage = 40 }, bullkelp_root = { damage = 40 }, spear_wathgrithr = { damage = 45 }, shieldofterror = { damage = 50 }, wathgrithr_shield = { damage = 50 }, oar_monkey = { damage = 50 }, tentaclespike = { damage = 50 }, whip = { damage = 55 }, batbat = { damage = 55 }, nightstick = { damage = 55 }, hambat = { damage = 55 }, fence_rotator = { damage = 60 }, voidcloth_scythe = { damage = 60 }, shadow_battleaxe = { damage = 60 }, sword_lunarplant = { damage = 60 }, rabbitkingspear = { damage = 65 }, trident = { damage = 65 }, spear_wathgrithr_lightning = { damage = 60 }, ruins_bat = { damage = 65 }, glasscutter = { damage = 70, durability = 200 }, nightsword = { damage = 70, durability = 200 }, pocketwatch_weapon = { damage = 75 } },
+    }
 
-    local function AddInsulationToPrefab(prefab, insulationtype, amount)
-        AddPrefabPostInit(prefab, function(inst)
-            if inst.components.insulator == nil then
-                inst:AddComponent("insulator")
-                inst.components.insulator.insulation = 0
-            end
-            inst.components.insulator.type = insulationtype
-            inst.components.insulator.insulation = (inst.components.insulator.insulation or 0) + amount
-        end)
+    local function AddInsulation(inst, insulationtype, amount)
+        if inst.components.insulator == nil then inst:AddComponent("insulator") end
+        inst.components.insulator.type = insulationtype
+        inst.components.insulator.insulation = amount
     end
 
-    for prefab, amount in pairs(warmitems) do
-        AddInsulationToPrefab(prefab, GLOBAL.SEASONS.WINTER, amount)
+    local function AddArmor(inst, data)
+        if inst.components.armor == nil then inst:AddComponent("armor") end
+        if data.durability == 0 then
+            inst.components.armor:InitIndestructible(data.absorb)
+        else
+            inst.components.armor:InitCondition(data.durability, data.absorb)
+        end
     end
 
-    for prefab, amount in pairs(colditems) do
-        AddInsulationToPrefab(prefab, GLOBAL.SEASONS.SUMMER, amount)
+    local function AddDurability(inst, amount)
+        if amount == 0 then
+            if inst.components.finiteuses ~= nil then inst:RemoveComponent("finiteuses") end
+            if inst.components.fueled ~= nil then inst:RemoveComponent("fueled") end
+            if inst.components.armor ~= nil then inst.components.armor:InitIndestructible(inst.components.armor.absorb_percent) end
+            return
+        end
+
+        if inst.components.fueled ~= nil then
+            inst.components.fueled.maxfuel = amount
+            inst.components.fueled:InitializeFuelLevel(amount)
+            return
+        end
+
+        if inst.components.finiteuses == nil then inst:AddComponent("finiteuses") end
+        inst.components.finiteuses:SetMaxUses(amount)
+        inst.components.finiteuses:SetUses(amount)
+    end
+
+    local function AddWalkSpeed(inst, mult)
+        if inst.components.equippable ~= nil then inst.components.equippable.walkspeedmult = mult end
+    end
+
+    local function AddDamage(inst, data)
+        if inst.components.weapon ~= nil and data.damage ~= nil then inst.components.weapon:SetDamage(data.damage) end
+        if data.durability ~= nil then AddDurability(inst, data.durability) end
+    end
+
+    for prefab, amount in pairs(itemschanges.insulationcold) do
+        AddPrefabPostInit(prefab, function(inst) AddInsulation(inst, GLOBAL.SEASONS.SUMMER, amount) end)
+    end
+
+    for prefab, amount in pairs(itemschanges.insulationwarm) do
+        AddPrefabPostInit(prefab, function(inst) AddInsulation(inst, GLOBAL.SEASONS.WINTER, amount) end)
+    end
+
+    for prefab, data in pairs(itemschanges.armor) do
+        AddPrefabPostInit(prefab, function(inst) AddArmor(inst, data) end)
+    end
+
+    for prefab, amount in pairs(itemschanges.durability) do
+        AddPrefabPostInit(prefab, function(inst) AddDurability(inst, amount) end)
+    end
+
+    for prefab, mult in pairs(itemschanges.walkspeed) do
+        AddPrefabPostInit(prefab, function(inst) AddWalkSpeed(inst, mult) end)
+    end
+
+    for prefab, data in pairs(itemschanges.damage) do
+        AddPrefabPostInit(prefab, function(inst) AddDamage(inst, data) end)
     end
 
     -- Prototyper range
@@ -1243,6 +1302,7 @@ GLOBAL.STRINGS.ACTIONS.CASTAOE.FENCE_ROTATOR = "Block"
 local shieldprefabs = {
     shieldofterror = { build = "swap_eye_shield", symbol = "swap_shield" },
     fence_rotator = { build = "fence_rotator", symbol = "swap_fence_rotator" },
+    cutless = { build = "cutless", symbol = "swap_cutless" },
 }
 
 for prefab, swap in pairs(shieldprefabs) do
@@ -1297,7 +1357,7 @@ for prefab, swap in pairs(shieldprefabs) do
         end
 
         local function OnParry(inst, doer, attacker, damage)
-            UseDurability(inst, inst:HasTag("handfed") and .33 or .1)
+            UseDurability(inst, inst:HasTag("handfed") and .33 or .2)
         end
 
         local function OnDischarged(inst)
@@ -1321,17 +1381,26 @@ for prefab, swap in pairs(shieldprefabs) do
     end)
 end
 
--- Better Backpacks (BOTH)
+-- Open/Close backpacks on ground or inventory
 GLOBAL.STRINGS.ACTIONS.OPEN_BACKPACK_CONTAINER = "Open"
+GLOBAL.STRINGS.ACTIONS.CLOSE_BACKPACK_CONTAINER = "Close"
 
-local OPEN_BACKPACK_CONTAINER = AddAction("OPEN_BACKPACK_CONTAINER", "Open", function(act)
-    local doer = act.doer
-    local target = act.target
+local function IsValidBackpackContainer(target, doer)
     if target == nil or doer == nil then return false end
     if not target:HasTag("backpack") then return false end
     if target.components.equippable ~= nil and target.components.equippable:IsEquipped() then return false end
-    if target.components.inventoryitem ~= nil and target.components.inventoryitem.owner ~= nil then return false end
+    if target.components.inventoryitem ~= nil then
+        local owner = target.components.inventoryitem.owner
+        if owner ~= nil and owner ~= doer then return false end
+    end
     if target.components.container == nil then return false end
+    return true
+end
+
+local OPEN_BACKPACK_CONTAINER = AddAction("OPEN_BACKPACK_CONTAINER", "Open", function(act)
+    local doer = act.doer
+    local target = act.target or act.invobject
+    if not IsValidBackpackContainer(target, doer) then return false end
     target.components.container:Open(doer)
     return true
 end)
@@ -1339,17 +1408,45 @@ end)
 OPEN_BACKPACK_CONTAINER.rmb = true
 OPEN_BACKPACK_CONTAINER.priority = 3
 
+local CLOSE_BACKPACK_CONTAINER = AddAction("CLOSE_BACKPACK_CONTAINER", "Close", function(act)
+    local doer = act.doer
+    local target = act.target or act.invobject
+    if not IsValidBackpackContainer(target, doer) then return false end
+    if not target.components.container:IsOpenedBy(doer) then return false end
+    target.components.container:Close(doer)
+    return true
+end)
+
+CLOSE_BACKPACK_CONTAINER.rmb = true
+CLOSE_BACKPACK_CONTAINER.priority = 4
+
 AddStategraphActionHandler("wilson", GLOBAL.ActionHandler(GLOBAL.ACTIONS.OPEN_BACKPACK_CONTAINER, "doshortaction"))
 AddStategraphActionHandler("wilson_client", GLOBAL.ActionHandler(GLOBAL.ACTIONS.OPEN_BACKPACK_CONTAINER, "doshortaction"))
+AddStategraphActionHandler("wilson", GLOBAL.ActionHandler(GLOBAL.ACTIONS.CLOSE_BACKPACK_CONTAINER, "doshortaction"))
+AddStategraphActionHandler("wilson_client", GLOBAL.ActionHandler(GLOBAL.ACTIONS.CLOSE_BACKPACK_CONTAINER, "doshortaction"))
 
-local function CanOpenGroundBackpack(inst)
-    if inst == nil or not inst:HasTag("backpack") then return false end
+local function CanUseBackpackContainer(inst, doer)
+    if inst == nil or doer == nil then return false end
+    if not inst:HasTag("backpack") then return false end
     if inst.replica.container == nil then return false end
-    if inst.replica.inventoryitem ~= nil and inst.replica.inventoryitem:IsHeld() then return false end
     if inst.replica.equippable ~= nil and inst.replica.equippable:IsEquipped() then return false end
     return true
 end
 
+local function AddBackpackContainerAction(inst, doer, actions)
+    if CanUseBackpackContainer(inst, doer) then
+        if inst.replica.container:IsOpenedBy(doer) then
+            table.insert(actions, GLOBAL.ACTIONS.CLOSE_BACKPACK_CONTAINER)
+        else
+            table.insert(actions, GLOBAL.ACTIONS.OPEN_BACKPACK_CONTAINER)
+        end
+    end
+end
+
 AddComponentAction("SCENE", "container", function(inst, doer, actions, right)
-    if right and CanOpenGroundBackpack(inst) then table.insert(actions, GLOBAL.ACTIONS.OPEN_BACKPACK_CONTAINER) end
+    if right then AddBackpackContainerAction(inst, doer, actions) end
+end)
+
+AddComponentAction("INVENTORY", "container", function(inst, doer, actions)
+    AddBackpackContainerAction(inst, doer, actions)
 end)

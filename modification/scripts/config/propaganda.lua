@@ -48,6 +48,7 @@ return {
         "Sabia que um figueiro pode crescer no bioma de mandrágoras?",
         "Krampus podem carregar tesouros adicionais.",
         "Wickerbottom NUNCA esquece das coisas que aprendeu.",
-        "Escudos e Rapieiras podem defender ataques!"
+        "Escudos, Rapieiras e Espadas de Madeira podem defender ataques!",
+        "Todas as armaduras, roupas e armas foram rebalanceadas."
     }
 }

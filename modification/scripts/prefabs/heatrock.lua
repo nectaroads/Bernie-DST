@@ -201,7 +201,7 @@ local function GetInventoryInsulationChance(inst, insulationtype)
             if insulator.type == insulationtype then insulation = insulation + insulator:GetInsulation() end
         end
     end
-    return math.min((insulation / 20) * 0.04, 1)
+    return math.min((insulation / 20) * 0.05, 1)
 end
 
 local function fn()
@@ -270,6 +270,7 @@ local function fn()
                 if chance > 0 and math.random() < chance then return end
             end
         end
+
         return _SetTemperature(self, value, ...)
     end
 
