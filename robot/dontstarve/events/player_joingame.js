@@ -12,7 +12,7 @@ module.exports = async (req, res) => {
   channel.send({ embeds: [{ color: 0x43724f, description: `**\`🏡\` · Boas-vindas à ${body.name.slice(0, 12)}! Há espaço para ${body.emptyspace} pessoa(s).**` }] }).catch(error => {
     print(`[Error] Application error: ${error}`);
   });
-  channel.setTopic(`O servidor tem ${players.length}/${body.maxplayers} players online - Sobreviva para contar histórias aos que lutarem depois de você!`).catch(error => {
+  channel.setTopic(`O servidor tem ${body.onlineplayers}/${body.maxplayers} players online - Sobreviva para contar histórias aos que lutarem depois de você!`).catch(error => {
     print(`[Error] Application error: ${error}`);
   });
   dontstarveserver.playersonline = players.length;
