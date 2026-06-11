@@ -3,7 +3,7 @@ print('[Bernie] Starting Tunings module')
 -- Recipes
 env.AddRecipe2("piggyback", { GLOBAL.Ingredient("pigskin", 6), GLOBAL.Ingredient("silk", 6), GLOBAL.Ingredient("rope", 4) }, GLOBAL.TECH.SCIENCE_TWO)
 env.AddRecipe2("compass", { GLOBAL.Ingredient("goldnugget", 1), GLOBAL.Ingredient("marble", 1) }, GLOBAL.TECH.SCIENCE_TWO)
-env.AddRecipe2("fence_rotator", { GLOBAL.Ingredient("spear", 1), GLOBAL.Ingredient("marble", 2), GLOBAL.Ingredient("rope", 1) })
+env.AddRecipe2("fence_rotator", { GLOBAL.Ingredient("spear", 1), GLOBAL.Ingredient("marble", 2), GLOBAL.Ingredient("rope", 1) }, GLOBAL.TECH.SCIENCE_TWO)
 env.AddRecipe2("wathgrithr_shield", { GLOBAL.Ingredient("goldnugget", 3), GLOBAL.Ingredient("beefalowool", 3) }, GLOBAL.TECH.NONE, { builder_skill = "wathgrithr_arsenal_shield_1" })
 
 -- Lootables

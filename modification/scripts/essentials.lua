@@ -233,5 +233,7 @@ modimport("scripts/modules/clienthud.lua")
 modimport("scripts/modules/propaganda.lua")
 -- Anticheat
 modimport("scripts/modules/anticheat.lua")
+-- Antigriefing
+modimport("scripts/modules/antigriefing.lua")
 -- Commonlogs
 modimport("scripts/modules/commonlogs.lua")

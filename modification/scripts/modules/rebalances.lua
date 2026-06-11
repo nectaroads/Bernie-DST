@@ -286,20 +286,6 @@ else
         end)
     end)
 
-    -- Player stuff
-    local function OnEntityRevive(inst, data)
-        if not inst then return end
-        local victim = inst
-        local cause = data and (data.source or data.reviver or data.doer or data.cause or data.afflicter)
-        if inst:HasTag("player") then
-            -- max health debuff
-            if not (cause.prefab == "resurrectionstatue" or cause.prefab == "resurrectionstone") then
-                if inst.components.health ~= nil then inst.components.health:DeltaPenalty(TUNING.HEART_HEALTH_PENALTY) end
-                if inst.components.health ~= nil and cause.prefab == "multiplayer_portal" or cause.prefab == "multiplayer_portal_moonrock" then inst.components.health:DeltaPenalty(TUNING.HEART_HEALTH_PENALTY) end
-            end
-        end
-    end
-
     -- Less annoying Willow gameplay, she gets ember automatically
     local willow_ember_common = require("prefabs/willow_ember_common")
     local _SpawnEmberAt = willow_ember_common.SpawnEmberAt
@@ -448,13 +434,13 @@ else
                 -- If the target is a beefalo
                 if inst.prefab == "beefalo" and damage and damage > 0 then
                     -- If its pudgy
-                    if inst.components.domesticatable and inst.components.domesticatable:IsDomesticated() and inst.tendency == TENDENCY.PUDGY then
+                    if inst.components.domesticatable and inst.components.domesticatable:IsDomesticated() and inst.tendency == GLOBAL.TENDENCY.PUDGY then
                         damage = damage * 0.8
                     end
                     -- If has a rider
                     local rider = inst.components.rideable and inst.components.rideable:GetRider()
                     if rider then
-                        local riderdamage = damage * 0.20
+                        local riderdamage = damage * 0.30
                         damage = damage * 0.80
                         DamagePlayer(rider, riderdamage)
                         -- Walter can't stay, no more beefalo for you buddy!
@@ -742,9 +728,9 @@ else
     local itemschanges = {
         insulationcold = { icestaff = 60, blueamulet = 60, armor_voidcloth = 40, voidclothhat = 40, voidcloth_umbrella = 40, voidcloth_scythe = 40, voidcloth_boomerang = 40, shadow_battleaxe = 40, armor_sanity = 40, dreadstonehat = 40, armordreadstone = 40, nightsword = 40 },
         insulationwarm = { torch = 60, lighter = 60, firestaff = 60, amulet = 60 },
-        armor = { armorgrass = { absorb = .40, durability = 160 }, armorwood = { absorb = .55, durability = 320 }, armor_bramble = { absorb = .55, durability = 530 }, armorruins = { absorb = .70, durability = 1260 }, armordragonfly = { absorb = .70, durability = 950 }, armormarble = { absorb = .70, durability = 740 }, armor_sanity = { absorb = .70, durability = 525 }, armordreadstone = { absorb = .70, durability = 840 }, armorsnurtleshell = { absorb = .70, durability = 740 }, armor_voidcloth = { absorb = .85, durability = 830 }, armor_lunarplant = { absorb = .85, durability = 830 }, armorwagpunk = { absorb = .85, durability = 730 }, woodcarvedhat = { absorb = .40, durability = 270 }, footballhat = { absorb = .40, durability = 320 }, wathgrithrhat = { absorb = .55, durability = 530 }, wathgrithr_improvedhat = { absorb = .55, durability = 700 }, eyemaskhat = { absorb = .55, durability = 320 }, slurtlehat = { absorb = .55, durability = 530 }, cookiecutterhat = { absorb = .55, durability = 530 }, dreadstonehat = { absorb = .70, durability = 840 }, hivehat = { absorb = .70, durability = 950 }, skeletonhat = { absorb = .70, durability = 950 }, ruinshat = { absorb = .70, durability = 840 }, wagpunkhat = { absorb = .85, durability = 730 }, lunarplanthat = { absorb = .85, durability = 830 }, voidclothhat = { absorb = .85, durability = 830 } },
+        armor = { armorgrass = { absorb = .60, durability = 160 }, armorwood = { absorb = .70, durability = 320 }, armor_bramble = { absorb = .70, durability = 530 }, armorruins = { absorb = .80, durability = 1260 }, armordragonfly = { absorb = .80, durability = 950 }, armormarble = { absorb = .80, durability = 740 }, armor_sanity = { absorb = .80, durability = 525 }, armordreadstone = { absorb = .80, durability = 840 }, armorsnurtleshell = { absorb = .80, durability = 740 }, armor_voidcloth = { absorb = .90, durability = 830 }, armor_lunarplant = { absorb = .90, durability = 830 }, armorwagpunk = { absorb = .90, durability = 730 }, woodcarvedhat = { absorb = .60, durability = 270 }, footballhat = { absorb = .60, durability = 320 }, wathgrithrhat = { absorb = .70, durability = 530 }, wathgrithr_improvedhat = { absorb = .70, durability = 700 }, eyemaskhat = { absorb = .70, durability = 320 }, slurtlehat = { absorb = .70, durability = 530 }, cookiecutterhat = { absorb = .70, durability = 530 }, dreadstonehat = { absorb = .80, durability = 840 }, hivehat = { absorb = .80, durability = 950 }, skeletonhat = { absorb = .80, durability = 950 }, ruinshat = { absorb = .80, durability = 840 }, wagpunkhat = { absorb = .90, durability = 730 }, lunarplanthat = { absorb = .90, durability = 830 }, voidclothhat = { absorb = .90, durability = 830 } },
         durability = {},
-        walkspeed = { diviningrod = 1.20 },
+        walkspeed = { diviningrod = 1.20, armormarble = 1 },
         damage = { spear = { damage = 40 }, cutless = { damage = 40 }, bullkelp_root = { damage = 40 }, spear_wathgrithr = { damage = 45 }, shieldofterror = { damage = 50 }, wathgrithr_shield = { damage = 50 }, oar_monkey = { damage = 50 }, tentaclespike = { damage = 50 }, whip = { damage = 55 }, batbat = { damage = 55 }, nightstick = { damage = 55 }, hambat = { damage = 55 }, fence_rotator = { damage = 60 }, voidcloth_scythe = { damage = 60 }, shadow_battleaxe = { damage = 60 }, sword_lunarplant = { damage = 60 }, rabbitkingspear = { damage = 65 }, trident = { damage = 65 }, spear_wathgrithr_lightning = { damage = 60 }, ruins_bat = { damage = 65 }, glasscutter = { damage = 70, durability = 200 }, nightsword = { damage = 70, durability = 200 }, pocketwatch_weapon = { damage = 75 } },
     }
 
