@@ -345,8 +345,8 @@ else
             if best_snapshot and data.snapshot then
                 if data.snapshot ~= best_snapshot then
                     if best_count > 1 then
-                        GLOBAL.ExecuteOnAllShards({ key = "message", type = "willow", message = player and (player.name or (player.GetDisplayName and player:GetDisplayName()) or player.prefab) .. " será expulso por flag 'Client Modificado'. Se acredita que essa mensagem é um erro, por favor, notifique no servidor do Discord: discord.gg/37yfuWjyj7", whisper = false, })
-                        GLOBAL.TheWorld:DoTaskInTime(30, function() GLOBAL.TheNet:Kick(userid) end)
+                        GLOBAL.ExecuteOnAllShards({ key = "message", type = "willow", message = player and (player.name or (player.GetDisplayName and player:GetDisplayName()) or player.prefab) .. " recebeu a flag 'Client Modificado'. Se acredita que essa mensagem é um erro, por favor, notifique no servidor do Discord: discord.gg/37yfuWjyj7", whisper = false, })
+                        --GLOBAL.TheWorld:DoTaskInTime(30, function() GLOBAL.TheNet:Kick(userid) end)
                     end
                 end
             end

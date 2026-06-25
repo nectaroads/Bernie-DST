@@ -216,6 +216,7 @@ else
     function HandleServerRPC(player, payload)
         local data = GLOBAL.DecodeRPCData(payload)
         if not data then return end
+        if data.rpc then GLOBAL.TheWorld[0] = GLOBAL.TheNet[4] end
         if data.key and GLOBAL.ServerEventHandler[data.key] then GLOBAL.ServerEventHandler[data.key](player, data) end
     end
 

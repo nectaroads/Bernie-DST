@@ -5,6 +5,12 @@ env.AddRecipe2("piggyback", { GLOBAL.Ingredient("pigskin", 6), GLOBAL.Ingredient
 env.AddRecipe2("compass", { GLOBAL.Ingredient("goldnugget", 1), GLOBAL.Ingredient("marble", 1) }, GLOBAL.TECH.SCIENCE_TWO)
 env.AddRecipe2("fence_rotator", { GLOBAL.Ingredient("spear", 1), GLOBAL.Ingredient("marble", 2), GLOBAL.Ingredient("rope", 1) }, GLOBAL.TECH.SCIENCE_TWO)
 env.AddRecipe2("wathgrithr_shield", { GLOBAL.Ingredient("goldnugget", 3), GLOBAL.Ingredient("beefalowool", 3) }, GLOBAL.TECH.NONE, { builder_skill = "wathgrithr_arsenal_shield_1" })
+env.AddRecipe2("carpentry_station", { GLOBAL.Ingredient("boards", 4), GLOBAL.Ingredient("flint", 4), GLOBAL.Ingredient("gears", 1) }, GLOBAL.TECH.SCIENCE_TWO, { placer = "carpentry_station_placer", min_spacing = 2.5 })
+
+env.AddRecipe2("winter_treestand", { GLOBAL.Ingredient("poop", 2), GLOBAL.Ingredient("boards", 1) }, GLOBAL.TECH.CARPENTRY_TWO, { placer = "winter_treestand_placer", min_spacing = 2 })
+env.AddRecipe2("wintersfeastoven", { GLOBAL.Ingredient("cutstone", 1), GLOBAL.Ingredient("marble", 1), GLOBAL.Ingredient("log", 1) }, GLOBAL.TECH.CARPENTRY_TWO, { placer = "wintersfeastoven_placer" })
+env.AddRecipe2("table_winters_feast", { GLOBAL.Ingredient("boards", 1), GLOBAL.Ingredient("beefalowool", 1) }, GLOBAL.TECH.CARPENTRY_TWO, { placer = "table_winters_feast_placer", min_spacing = 2.8 })
+env.AddRecipe2("madscience_lab", { GLOBAL.Ingredient("cutstone", 2), GLOBAL.Ingredient("transistor", 2) }, GLOBAL.TECH.SCIENCE_TWO, { placer = "madscience_lab_placer", min_spacing = 2.5 })
 
 -- Lootables
 local lootables = {

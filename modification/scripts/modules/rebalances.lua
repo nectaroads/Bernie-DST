@@ -1367,17 +1367,104 @@ for prefab, swap in pairs(shieldprefabs) do
     end)
 end
 
+-- Block Backpacks in Containers
+local function BlockBackpackInBackpack(containerinst, item)
+    return item ~= nil and item:HasTag("backpack") and containerinst ~= nil and containerinst:HasTag("backpack")
+end
+
+AddComponentPostInit("container", function(self)
+    local _CanTakeItemInSlot = self.CanTakeItemInSlot
+    function self:CanTakeItemInSlot(item, slot)
+        if BlockBackpackInBackpack(self.inst, item) or item == self.inst then return false end
+        return _CanTakeItemInSlot(self, item, slot)
+    end
+end)
+
+AddClassPostConstruct("components/container_replica", function(self)
+    local _CanTakeItemInSlot = self.CanTakeItemInSlot
+    function self:CanTakeItemInSlot(item, slot)
+        if BlockBackpackInBackpack(self.inst, item) or item == self.inst then return false end
+        return _CanTakeItemInSlot(self, item, slot)
+    end
+end)
+
 -- Open/Close backpacks on ground or inventory
+local Inventory = GLOBAL.require("components/inventory")
+
+function Inventory:GetOverflowContainer()
+    if self.ignoreoverflow then return end
+    local item = self:GetEquippedItem(GLOBAL.EQUIPSLOTS.BODY)
+    if item == nil or item.components.container == nil or not item.components.container.canbeopened then
+        for _, invitem in pairs(self.itemslots) do
+            if invitem ~= nil and invitem:HasTag("backpack") and invitem.components.container ~= nil and invitem.components.container.canbeopened then
+                item = invitem
+                break
+            end
+        end
+    end
+    return item ~= nil and item.components.container ~= nil and item.components.container.canbeopened and item.components.container or nil
+end
+
+local InventoryReplica = GLOBAL.require("components/inventory_replica")
+local _ReplicaGetOverflowContainer = InventoryReplica.GetOverflowContainer
+
+function InventoryReplica:GetOverflowContainer()
+    local container = _ReplicaGetOverflowContainer(self)
+    if container ~= nil then return container end
+    for _, invitem in pairs(self:GetItems()) do
+        if invitem ~= nil and invitem:HasTag("backpack") and invitem.replica.container ~= nil then return invitem.replica.container end
+    end
+end
+
+AddClassPostConstruct("screens/playerhud", function(self)
+    local _OpenContainer = self.OpenContainer
+    local _CloseContainer = self.CloseContainer
+    local function CloseFloatingWidget(hud, container)
+        if hud.controls == nil or hud.controls.containers == nil then return end
+        for _, widget in pairs(hud.controls.containers) do
+            if widget.container == container then widget:Close() end
+        end
+    end
+
+    function self:OpenContainer(container, side)
+        if side and container ~= nil and container:HasTag("backpack") then
+            if GLOBAL.Profile:GetIntegratedBackpack() then
+                CloseFloatingWidget(self, container)
+                self.controls.inv.rebuild_pending = true
+                return
+            else
+                self.controls.inv.rebuild_pending = true
+                CloseFloatingWidget(self, container)
+            end
+        end
+        return _OpenContainer(self, container, side)
+    end
+
+    function self:CloseContainer(container, side)
+        if side and container ~= nil and container:HasTag("backpack") then
+            if GLOBAL.Profile:GetIntegratedBackpack() then
+                self.controls.inv.rebuild_pending = true
+                return
+            else
+                CloseFloatingWidget(self, container)
+                self.controls.inv.rebuild_pending = true
+                return
+            end
+        end
+        return _CloseContainer(self, container, side)
+    end
+end)
+
 GLOBAL.STRINGS.ACTIONS.OPEN_BACKPACK_CONTAINER = "Open"
 GLOBAL.STRINGS.ACTIONS.CLOSE_BACKPACK_CONTAINER = "Close"
 
 local function IsValidBackpackContainer(target, doer)
     if target == nil or doer == nil then return false end
     if not target:HasTag("backpack") then return false end
-    if target.components.equippable ~= nil and target.components.equippable:IsEquipped() then return false end
-    if target.components.inventoryitem ~= nil then
+    if target.components.equippable and target.components.equippable:IsEquipped() then return false end
+    if target.components.inventoryitem then
         local owner = target.components.inventoryitem.owner
-        if owner ~= nil and owner ~= doer then return false end
+        if owner and owner ~= doer then return false end
     end
     if target.components.container == nil then return false end
     return true
