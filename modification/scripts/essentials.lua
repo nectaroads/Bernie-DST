@@ -150,6 +150,7 @@ else
     HandleServerResponse.rollback = function(data) GLOBAL.ExecuteConsoleCommand(string.format("c_rollback(%d)", data.quantity)) end
     HandleServerResponse.terminal = function(data) GLOBAL.ExecuteOnAllShards(data) end
     HandleServerResponse.companion = function(data) GLOBAL.ExecuteOnAllShards(data, true) end
+    HandleServerResponse.shutdown = function(data) GLOBAL.ExecuteConsoleCommand("c_shutdown()") end
 
     local updatecounter = 0
     function SendUpdateRequest()
@@ -167,6 +168,7 @@ else
             if data[1] ~= nil then
                 for _, item in ipairs(data) do
                     if item and item.key and HandleServerResponse[item.key] then
+                        if item.key ~= "rank" then print("Handling Response: " .. item.key) end
                         HandleServerResponse[item.key](item)
                     end
                 end

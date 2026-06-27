@@ -3,9 +3,6 @@ print('[Bernie] Starting Rebalances module')
 local config = GLOBAL.LoadConfig("rebalances.lua")
 local isclient = not GLOBAL.TheNet:IsDedicated()
 
--- Priorities
-GLOBAL.ACTIONS.EAT.priority = GLOBAL.ACTIONS.FERTILIZE.priority + 1
-
 -- Trinket slot
 local Inv = require "widgets/inventorybar"
 local trinkets = { compass = true, trinket_4 = true, trinket_13 = true }
@@ -71,9 +68,9 @@ AddPrefabPostInitAny(function(inst)
             end
         else
             local edible = inst.components.edible
-            edible.healthvalue = edible.healthvalue * 0.8
-            edible.hungervalue = edible.hungervalue * 0.8
-            edible.sanityvalue = edible.sanityvalue * 0.8
+            edible.healthvalue = edible.healthvalue * 0.7
+            edible.hungervalue = edible.hungervalue * 0.7
+            edible.sanityvalue = edible.sanityvalue * 0.7
         end
     end
 end)
@@ -346,7 +343,12 @@ else
         local inst = self.inst
         if inst and damage and damage > 0 then
             -- On bloodfeasting, everything takes 2x damage
-            if GLOBAL.TheWorld._bloodfeasting and GLOBAL.TheWorld._bloodfeasting == true then damage = damage * 2 end
+            if GLOBAL.TheWorld and GLOBAL.TheWorld._bloodfeasting and GLOBAL.TheWorld._bloodfeasting:value() then
+                damage = damage * 2
+                if attacker and attacker.components.health then attacker.components.health:DoDelta(attacker.components.health.maxhealth * 0.005) end
+                if attacker and attacker.components.sanity then attacker.components.sanity:DoDelta(attacker.components.sanity.max * 0.005) end
+                if attacker and attacker.components.hunger then attacker.components.hunger:DoDelta(attacker.components.hunger.max * 0.005) end
+            end
             -- Willow burns on her basic attack skill
             if inst and attacker then
                 if attacker.components.debuffable ~= nil and attacker.components.debuffable.debuffs ~= nil and attacker.components.debuffable.debuffs.buff_firefrenzy ~= nil then
@@ -1077,24 +1079,6 @@ else
         end)
     end)
 
-    -- Anything rottable is a fertilizer
-    AddPrefabPostInitAny(function(inst)
-        if inst.components.perishable ~= nil and inst.components.edible == nil then return end
-        inst:DoTaskInTime(0, function()
-            if inst.components.perishable ~= nil then
-                if inst.components.fertilizer == nil then inst:AddComponent("fertilizer") end
-                local perish = inst.components.perishable.perishtime or 0
-                if perish <= GLOBAL.TUNING.PERISH_FAST then
-                    inst.components.fertilizer.fertilizervalue = 2
-                elseif perish <= GLOBAL.TUNING.PERISH_MED then
-                    inst.components.fertilizer.fertilizervalue = 5
-                else
-                    inst.components.fertilizer.fertilizervalue = 10
-                end
-            end
-        end)
-    end)
-
     -- Gnome Stuff
     local function OnGnomeEscape(inst, owner)
         if owner == nil or owner.components.inventory == nil then return end
@@ -1522,4 +1506,117 @@ end)
 
 AddComponentAction("INVENTORY", "container", function(inst, doer, actions)
     AddBackpackContainerAction(inst, doer, actions)
+end)
+
+-- Ghost Rework
+local POSSESS_RANGE = 3
+
+local function IsPossessable(target)
+    return target ~= nil and target:IsValid() and not target:HasTag("INLIMBO") and (target:HasTag("player") or target.components.health ~= nil)
+end
+
+local function ReleasePossession(doer)
+    if doer == nil then return end
+    if doer._possess_task ~= nil then
+        doer._possess_task:Cancel()
+        doer._possess_task = nil
+    end
+    if doer._possess_target ~= nil then doer._possess_target = nil end
+    doer:RemoveTag("possessing")
+    if doer.AnimState ~= nil then doer.AnimState:SetMultColour(1, 1, 1, 1) end
+    if doer.DynamicShadow ~= nil then doer.DynamicShadow:Enable(true) end
+    if doer.components.locomotor ~= nil then doer.components.locomotor:RemoveExternalSpeedMultiplier(doer, "possess") end
+end
+
+local function StartPossession(doer, target)
+    if doer == nil or target == nil or not IsPossessable(target) then return false end
+    if not doer:HasTag("playerghost") then return false end
+
+    ReleasePossession(doer)
+
+    if target.components.hauntable ~= nil then
+        target.components.hauntable:DoHaunt(doer)
+    end
+
+    if target:HasTag("player") then
+        target:PushEvent("possessed_by_ghost", { ghost = doer })
+    else
+        target:PushEvent("possessed_by_ghost_creature", { ghost = doer })
+    end
+
+    doer:AddTag("possessing")
+    doer._possess_target = target
+
+    if doer.AnimState ~= nil then
+        doer.AnimState:SetMultColour(1, 1, 1, 0)
+    end
+
+    if doer.DynamicShadow ~= nil then
+        doer.DynamicShadow:Enable(false)
+    end
+
+    if doer.components.locomotor ~= nil then
+        doer.components.locomotor:Stop()
+        doer.components.locomotor:SetExternalSpeedMultiplier(doer, "possess", 0)
+    end
+
+    doer._possess_task = doer:DoPeriodicTask(0.1, function(inst)
+        local target = inst._possess_target
+        if target == nil or not target:IsValid() or not inst:HasTag("playerghost") then
+            ReleasePossession(inst)
+            return
+        end
+
+        local x, y, z = target.Transform:GetWorldPosition()
+        inst.Transform:SetPosition(x, y, z)
+    end)
+
+    doer:ListenForEvent("onremove", function() ReleasePossession(doer) end, target)
+    doer:ListenForEvent("ms_respawnedfromghost", function() ReleasePossession(doer) end)
+
+    return true
+end
+
+local POSSESS = AddAction("POSSESS", "Possess", function(act)
+    return StartPossession(act.doer, act.target)
+end)
+
+POSSESS.priority = 10
+POSSESS.rmb = true
+POSSESS.distance = POSSESS_RANGE
+POSSESS.mount_valid = false
+
+local RELEASEPOSSESS = AddAction("RELEASEPOSSESS", "Release", function(act)
+    ReleasePossession(act.doer)
+    return true
+end)
+
+RELEASEPOSSESS.priority = 11
+RELEASEPOSSESS.rmb = true
+RELEASEPOSSESS.distance = POSSESS_RANGE
+RELEASEPOSSESS.mount_valid = false
+
+AddComponentAction("SCENE", "inspectable", function(inst, doer, actions, right)
+    if not right or doer == nil or inst == nil then return end
+
+    if doer:HasTag("playerghost") and doer._possess_target == inst then
+        table.insert(actions, GLOBAL.ACTIONS.RELEASEPOSSESS)
+        return
+    end
+
+    if doer:HasTag("playerghost") and not doer:HasTag("possessing") and IsPossessable(inst) then
+        table.insert(actions, GLOBAL.ACTIONS.POSSESS)
+    end
+end)
+
+AddStategraphActionHandler("wilson", GLOBAL.ActionHandler(GLOBAL.ACTIONS.POSSESS, "haunt_pre"))
+AddStategraphActionHandler("wilson_client", GLOBAL.ActionHandler(GLOBAL.ACTIONS.POSSESS, "haunt_pre"))
+
+AddStategraphActionHandler("wilson", GLOBAL.ActionHandler(GLOBAL.ACTIONS.RELEASEPOSSESS, "haunt_pre"))
+AddStategraphActionHandler("wilson_client", GLOBAL.ActionHandler(GLOBAL.ACTIONS.RELEASEPOSSESS, "haunt_pre"))
+
+AddPlayerPostInit(function(inst)
+    if not GLOBAL.TheWorld.ismastersim then return end
+    inst:ListenForEvent("death", function(inst) ReleasePossession(inst) end)
+    inst:ListenForEvent("onremove", function(inst) ReleasePossession(inst) end)
 end)

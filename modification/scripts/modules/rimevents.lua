@@ -8,12 +8,12 @@ if isclient then
 else
     -- Server Only
     local storyteller = "willow"
-    local lasteventday = -2 -- -2
+    local lasteventday = 0  -- -2
     local currentevent = ""
-    local mindelay = 20      -- 30
-    local maxdelay = 90      -- 90
-    local COOLDOWN = 3      --3
-    local EVENTCHANCE = 0.15   --0.15
+    local mindelay = 20     -- 30
+    local maxdelay = 90     -- 90
+    local COOLDOWN = 6      --3
+    local EVENTCHANCE = 0.3 --0.15
 
     function RegulateTemp()
         if not GLOBAL.TheWorld.net then return end
@@ -22,7 +22,7 @@ else
         local magnitude = 1
         if positive then magnitude = -1 end
         GLOBAL.TheWorld.net:SetCustomTemp(GLOBAL.TheWorld.net:GetCustomTemp() + magnitude)
-        GLOBAL.TheWorld:DoTaskInTime(4, function()
+        GLOBAL.TheWorld:DoTaskInTime(6, function()
             RegulateTemp()
         end)
     end
@@ -134,12 +134,15 @@ else
 
     EventHandler.bloodfeast = function(event)
         if not GLOBAL.TheNet then return end
-        GLOBAL.TheNet:SetPVP(true)
-        GLOBAL.TheWorld._bloodfeasting = true
-        GLOBAL.TheWorld:DoTaskInTime(math.random(60 * 3, 60 * 8), function(inst)
+        GLOBAL.TheWorld._bloodfeasting:set(true)
+        GLOBAL.TheWorld:DoTaskInTime(math.random(60 * 2, 60 * 4), function(inst)
             if not GLOBAL.TheWorld:HasTag("cave") then GLOBAL.ExecuteOnAllShards(event.messageend) end
-            GLOBAL.TheNet:SetPVP(false)
-            GLOBAL.TheWorld._bloodfeasting = false
+            GLOBAL.TheWorld._bloodfeasting:set(false)
+            for _, player in ipairs(GLOBAL.AllPlayers) do
+                if player ~= nil and player:IsValid() and player.SoundEmitter ~= nil then
+                    player.SoundEmitter:PlaySound("dontstarve/quagmire/music/gorge_win", nil, 0.5)
+                end
+            end
         end)
     end
 
@@ -215,6 +218,8 @@ else
             for _, player in ipairs(GLOBAL.AllPlayers) do
                 if player ~= nil and player:IsValid() and player.SoundEmitter ~= nil then
                     player.SoundEmitter:PlaySound("rifts4/shadowthrall_mouth/taunt")
+                    local quotes = config.quotes[player.prefab]
+                    if quotes ~= nil and player.components.talker ~= nil then player.components.talker:Say(quotes[math.random(#quotes)]) end
                 end
             end
         end
@@ -269,6 +274,8 @@ else
 
     AddPrefabPostInit("world", function(inst)
         if not GLOBAL.TheWorld.ismastersim then return end
+
+        inst._bloodfeasting = GLOBAL.net_bool(inst.GUID, "world._bloodfeasting", "bloodfeastingdirty")
 
         GLOBAL.TheWorld:WatchWorldState("phase", function(inst, phase)
             if phase == "day" then

@@ -7,7 +7,7 @@ module.exports = async (req, res) => {
   if (!channel) return res.status(200).json({ ok: true });
 
   const roleId = '1265501710256705607';
-  channel.send({ content: `-# <@&${roleId}>`, embeds: [buildEmbed({ color: 0xfd528c, description: `**\`🚨\` · Modificação detectada! ${body.victim} \`${body.userid}\`**` })], allowedMentions: { roles: [roleId] } }).catch(error => {
+  channel.send({ embeds: [buildEmbed({ color: 0xfd528c, description: `**\`🚨\` · Modificação detectada! ${body.victim} \`${body.userid}\`**` })] }).catch(error => {
     print(`[Error] Application error: ${error}`);
   });
 

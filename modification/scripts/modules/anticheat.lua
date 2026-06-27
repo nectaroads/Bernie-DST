@@ -96,7 +96,7 @@ if isclient then
                     description = description .. GLOBAL.table.concat(modnames, ", ")
                     GLOBAL.TheFrontEnd:PushScreen(require("screens/bigpopupdialog")(title, description, { { text = config.leave, cb = function() GLOBAL.DoRestart(true) end }, { text = config.accept, cb = function() GLOBAL.DoRestart(true) end }, }))
                     if inst then
-                        inst:DoTaskInTime(20, function()
+                        inst:DoTaskInTime(120, function()
                             if inst then GLOBAL.DoRestart(true) end
                         end)
                     end
@@ -345,7 +345,7 @@ else
             if best_snapshot and data.snapshot then
                 if data.snapshot ~= best_snapshot then
                     if best_count > 1 then
-                        GLOBAL.ExecuteOnAllShards({ key = "message", type = "willow", message = player and (player.name or (player.GetDisplayName and player:GetDisplayName()) or player.prefab) .. " recebeu a flag 'Client Modificado'. Se acredita que essa mensagem é um erro, por favor, notifique no servidor do Discord: discord.gg/37yfuWjyj7", whisper = false, })
+                        GLOBAL.ExecuteOnAllShards({ key = "message", type = "willow", message = player and (player.name or (player.GetDisplayName and player:GetDisplayName()) or player.prefab) .. " recebeu a flag 'Client Modificado'.", whisper = false, })
                         --GLOBAL.TheWorld:DoTaskInTime(30, function() GLOBAL.TheNet:Kick(userid) end)
                     end
                 end

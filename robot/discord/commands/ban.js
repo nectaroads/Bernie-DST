@@ -1,6 +1,7 @@
 const { SlashCommandBuilder } = require('discord.js');
 const { buildEmbed, validateStaff } = require('../../discord');
 const { print } = require('../../tools');
+const { messagebuffer } = require('../../variables');
 
 module.exports = {
   data: new SlashCommandBuilder

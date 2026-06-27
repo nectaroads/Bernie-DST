@@ -185,6 +185,9 @@ if isclient then
         GLOBAL.BindKey(283, function()
             ShowGuidebookPage("rank", rankfillings)
         end)
+        GLOBAL.ShowCustomMessage({ type = 'server', message = 'Sua primeira vez aqui? Aperte F1 e aprenda sobre o servidor.' })
+        GLOBAL.ShowCustomMessage({ type = 'server', message = 'Tem alguma dica/reclamação? Aperte tab e acesse nosso discord!' })
+        GLOBAL.ShowCustomMessage({ type = 'server', message = 'Não gosta desse servidor? Convide seus amigos para outro servidor brasileiro!' })
     end)
 else
     GLOBAL.HandleShardFunction.rank = function(data)

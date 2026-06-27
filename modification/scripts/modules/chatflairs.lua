@@ -54,13 +54,38 @@ if isclient then
         end
     end
 
+    local clienteventhandler = {}
+    clienteventhandler.blink = function()
+        if not GLOBAL.ThePlayer or not GLOBAL.TheFrontEnd then return end
+        local fadetime = 0.5
+        GLOBAL.TheFrontEnd:Fade(false, 0)
+        GLOBAL.ThePlayer:DoTaskInTime(0, function()
+            GLOBAL.TheFrontEnd:Fade(true, fadetime)
+        end)
+    end
+
+    clienteventhandler.overlay = function(data)
+        if not GLOBAL.ThePlayer or not GLOBAL.ThePlayer.HUD then return end
+        if GLOBAL.ThePlayer.HUD[data.overlay] then
+            if data.value == true then
+                GLOBAL.ThePlayer.HUD[data.overlay]:Show()
+            else
+                GLOBAL.ThePlayer.HUD[data.overlay]:Hide()
+            end
+        end
+    end
+
     GLOBAL.ClientEventHandler.message = function(data)
+        print(data)
         if data.sound and GLOBAL.ThePlayer then GLOBAL.ThePlayer.SoundEmitter:PlaySound(data.sound) end
+        if data.event and GLOBAL.ThePlayer and clienteventhandler[data.event] then clienteventhandler[data.event]() end
+        if data.overlay and GLOBAL.ThePlayer then clienteventhandler.overlay(data) end
         GLOBAL.ShowCustomMessage(data)
     end
 else
     GLOBAL.HandleShardFunction.message = function(data)
         if not data then return end
+        print("[Log] Sending chat message: " .. data.message)
         if not data.userid then
             for _, player in ipairs(GLOBAL.AllPlayers) do
                 if player and player:IsValid() then

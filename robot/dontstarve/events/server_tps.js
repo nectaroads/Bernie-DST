@@ -10,7 +10,7 @@ module.exports = async (req, res) => {
   dontstarveserver.maxplayers = body.maxplayers;
   if (body.tps < 25) {
     const roleId = '1265501710256705607';
-    channel.send({ content: `-# <@&${roleId}>`, embeds: [buildEmbed({ color: 0xffb256, description: `**\`⚠️\` · O servidor está com má performance! \`TPS\`**` })], allowedMentions: { roles: [roleId] } }).catch(error => {
+    channel.send({ embeds: [buildEmbed({ color: 0xffb256, description: `**\`⚠️\` · O servidor está com má performance! \`TPS\`**` })], allowedMentions: { roles: [roleId] } }).catch(error => {
       print(`[Error] Application error: ${error}`);
     });
   }
