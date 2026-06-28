@@ -8,7 +8,7 @@ module.exports = async (req, res) => {
   const body = req.body;
   const channel = await getClientChannel(dotenv.GUILDID, dotenv.CHATROOM);
   if (!channel) return res.status(200).json({ ok: true });
-  channel.send({ embeds: [{ color: 0xc84937, description: `**\`🏟️\` · ${body.victim} caiu! Foi ${body.cause || 'Charlie'} quem o derrubou.**` }] }).catch(error => {});
+  channel.send({ embeds: [{ color: 0xc84937, description: `*\`🏟️\` · **${body.victim}** caiu! Foi **${body.cause || 'Charlie'}** quem derrotou.*` }] }).catch(error => {});
   if (!epiccooldowns[body.prefab]) epiccooldowns[body.prefab] = 0;
 
   const users = body.users ? Object.values(body.users) : [];
@@ -20,7 +20,7 @@ module.exports = async (req, res) => {
 
   if (now - lastKill < eightMinutes) return res.status(200).json({ ok: true, cooldown: true });
 
-  channel.send({ embeds: [buildEmbed({ color: 0xe69745, description: `\`🪙\` · **Todos** receberam **3 Oinks**!` })] }).catch(error => {
+  channel.send({ embeds: [buildEmbed({ color: 0xe69745, description: `*\`🪙\` · **Todos** receberam **3 Oinks**!*` })] }).catch(error => {
     print(`[Error] Application error: ${error}`);
   });
 

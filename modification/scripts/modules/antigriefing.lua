@@ -148,6 +148,7 @@ local REBUILD_BURNT = AddAction("REBUILD_BURNT", "Repair", function(act)
     return GLOBAL.RebuildBurntStructure(target, doer)
 end)
 
+REBUILD_BURNT.rmb = true
 REBUILD_BURNT.priority = 3
 REBUILD_BURNT.distance = 2
 REBUILD_BURNT.mount_valid = true
