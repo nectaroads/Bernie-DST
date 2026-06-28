@@ -17,7 +17,7 @@ module.exports = {
     if (!duration) duration = 1;
     const actionData = { key: 'ban', target: id, duration: duration };
     messagebuffer.buffer.push(actionData);
-    interaction.reply({ embeds: [buildEmbed({ color: 0x62417f, description: `\`🫂\` · **Banindo \`${userId}\` por \`${duration}\` dias...**` })] }).catch(error => {
+    interaction.reply({ embeds: [buildEmbed({ color: 0x62417f, description: `-# \`🫂\` · Banindo \`${userId}\` por \`${duration}\` dias...` })] }).catch(error => {
       print(`[Error] Application error: ${error}`);
     });
   }

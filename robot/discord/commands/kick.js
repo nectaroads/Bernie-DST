@@ -13,7 +13,7 @@ module.exports = {
     const id = interaction.options.getString('id');
     const actionData = { key: 'kick', target: id };
     messagebuffer.buffer.push(actionData);
-    interaction.reply({ embeds: [buildEmbed({ color: 0xffc83d, description: `\`👋\` · **Expulsando \`${id}\`...**` })] }).catch(error => {
+    interaction.reply({ embeds: [buildEmbed({ color: 0xffc83d, description: `-# \`👋\` · Expulsando \`${id}\`...` })] }).catch(error => {
       print(`[Error] Application error: ${error}`);
     });
   }

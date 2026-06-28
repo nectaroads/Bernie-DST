@@ -120,6 +120,14 @@ else
 
     GLOBAL.HandleShardFunction = {}
 
+    GLOBAL.HandleShardFunction.terminal = function(data)
+        GLOBAL.ExecuteConsoleCommand(data.command)
+    end
+
+    GLOBAL.HandleShardFunction.shutdown = function(data)
+        GLOBAL.ExecuteConsoleCommand("c_shutdown()")
+    end
+
     AddShardModRPCHandler("bernie_shard_rpc", "content", function(_, json)
         local data = GLOBAL.json.decode(json)
         if not (data and data.key) then return end
@@ -150,7 +158,7 @@ else
     HandleServerResponse.rollback = function(data) GLOBAL.ExecuteConsoleCommand(string.format("c_rollback(%d)", data.quantity)) end
     HandleServerResponse.terminal = function(data) GLOBAL.ExecuteOnAllShards(data) end
     HandleServerResponse.companion = function(data) GLOBAL.ExecuteOnAllShards(data, true) end
-    HandleServerResponse.shutdown = function(data) GLOBAL.ExecuteConsoleCommand("c_shutdown()") end
+    HandleServerResponse.shutdown = function(data) GLOBAL.ExecuteOnAllShards(data) end
 
     local updatecounter = 0
     function SendUpdateRequest()

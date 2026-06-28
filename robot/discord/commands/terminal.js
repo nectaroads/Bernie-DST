@@ -13,7 +13,7 @@ module.exports = {
     const command = interaction.options.getString('command');
     const actionData = { key: 'terminal', command: command };
     messagebuffer.buffer.push(actionData);
-    interaction.reply({ embeds: [buildEmbed({ color: 0xfc7753, description: `\`💻\` · **Executando comando...**` })] }).catch(error => {
+    interaction.reply({ embeds: [buildEmbed({ color: 0xfc7753, description: `-# \`💻\` · Executando comando...` })] }).catch(error => {
       print(`[Error] Application error: ${error}`);
     });r
   }

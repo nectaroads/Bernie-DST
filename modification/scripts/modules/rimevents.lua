@@ -50,7 +50,7 @@ else
             if not GLOBAL.TheWorld:HasTag("cave") then
                 GLOBAL.ExecuteOnAllShards(event.messageend)
                 local users = GLOBAL.GetUsers()
-                local jsonEncoded = GLOBAL.json.encode({ key = "world_sadistic_event_start", event = event, users = users })
+                local jsonEncoded = GLOBAL.json.encode({ key = "world_sadistic_event_end", event = event, users = users })
                 GLOBAL.SendRequest(jsonEncoded)
             end
             GLOBAL.TheWorld:PushEvent("ms_forceprecipitation")
@@ -84,7 +84,7 @@ else
             if not GLOBAL.TheWorld:HasTag("cave") then
                 GLOBAL.ExecuteOnAllShards(event.messageend)
                 local users = GLOBAL.GetUsers()
-                local jsonEncoded = GLOBAL.json.encode({ key = "world_sadistic_event_start", event = event, users = users })
+                local jsonEncoded = GLOBAL.json.encode({ key = "world_sadistic_event_end", event = event, users = users })
                 GLOBAL.SendRequest(jsonEncoded)
             end
             local x, y, z = target.Transform:GetWorldPosition()
@@ -116,7 +116,7 @@ else
             if not GLOBAL.TheWorld:HasTag("cave") then
                 GLOBAL.ExecuteOnAllShards(event.messageend)
                 local users = GLOBAL.GetUsers()
-                local jsonEncoded = GLOBAL.json.encode({ key = "world_sadistic_event_start", event = event, users = users })
+                local jsonEncoded = GLOBAL.json.encode({ key = "world_sadistic_event_end", event = event, users = users })
                 GLOBAL.SendRequest(jsonEncoded)
             end
             local seen = {}
@@ -148,7 +148,7 @@ else
             if not GLOBAL.TheWorld:HasTag("cave") then
                 GLOBAL.ExecuteOnAllShards(event.messageend)
                 local users = GLOBAL.GetUsers()
-                local jsonEncoded = GLOBAL.json.encode({ key = "world_sadistic_event_start", event = event, users = users })
+                local jsonEncoded = GLOBAL.json.encode({ key = "world_sadistic_event_end", event = event, users = users })
                 GLOBAL.SendRequest(jsonEncoded)
             end
             GLOBAL.TheWorld:PushEvent("ms_setclocksegs", { day = 0, dusk = 0, night = 16 })
@@ -163,7 +163,7 @@ else
             if not GLOBAL.TheWorld:HasTag("cave") then
                 GLOBAL.ExecuteOnAllShards(event.messageend)
                 local users = GLOBAL.GetUsers()
-                local jsonEncoded = GLOBAL.json.encode({ key = "world_sadistic_event_start", event = event, users = users })
+                local jsonEncoded = GLOBAL.json.encode({ key = "world_sadistic_event_end", event = event, users = users })
                 GLOBAL.SendRequest(jsonEncoded)
             end
             GLOBAL.TheWorld._bloodfeasting:set(false)
@@ -181,7 +181,7 @@ else
             if GLOBAL.TheWorld:HasTag("cave") then return end
             GLOBAL.ExecuteOnAllShards(event.messageend)
             local users = GLOBAL.GetUsers()
-            local jsonEncoded = GLOBAL.json.encode({ key = "world_sadistic_event_start", event = event, users = users })
+            local jsonEncoded = GLOBAL.json.encode({ key = "world_sadistic_event_end", event = event, users = users })
             GLOBAL.SendRequest(jsonEncoded)
             local origin = GLOBAL.Vector3(0, 0, 0)
             local offset = nil
@@ -259,15 +259,17 @@ else
         if event.loop > 0 then
             if event.currentloop >= event.loop then
                 if event.messageend then
-                    if not GLOBAL.TheWorld:HasTag("cave") then GLOBAL.ExecuteOnAllShards(event.messageend) end
+                    if not GLOBAL.TheWorld:HasTag("cave") then
+                        GLOBAL.ExecuteOnAllShards(event.messageend)
+                        local users = GLOBAL.GetUsers()
+                        local jsonEncoded = GLOBAL.json.encode({ key = "world_sadistic_event_end", event = event, users = users })
+                        GLOBAL.SendRequest(jsonEncoded)
+                    end
                     for _, player in ipairs(GLOBAL.AllPlayers) do
                         if player ~= nil and player:IsValid() and player.SoundEmitter ~= nil then
                             player.SoundEmitter:PlaySound("dontstarve/quagmire/music/gorge_win", nil, 0.5)
                         end
                     end
-                    local users = GLOBAL.GetUsers()
-                    local jsonEncoded = GLOBAL.json.encode({ key = "world_sadistic_event_end", event = event, users = users })
-                    GLOBAL.SendRequest(jsonEncoded)
                 end
                 return true
             end

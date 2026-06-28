@@ -9,7 +9,7 @@ module.exports = {
     if (!validateStaff(interaction)) return;
     const actionData = { key: 'regenerate' };
     messagebuffer.buffer.push(actionData);
-    interaction.reply({ embeds: [buildEmbed({ color: 0xfc7753, description: `\`🪐\` **· Regenerando o mundo...**` })] }).catch(error => {
+    interaction.reply({ embeds: [buildEmbed({ color: 0xfc7753, description: `-# \`🪐\` · Regenerando o mundo...` })] }).catch(error => {
       print(`[Error] Application error: ${error}`);
     });
   }

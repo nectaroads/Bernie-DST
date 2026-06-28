@@ -119,43 +119,42 @@ AddPrefabPostInitAny(function(inst)
     end)
 end)
 
-if GLOBAL.TheNet:IsDedicated() then
-    -- Rebuild burnt stuff
-    GLOBAL.RebuildBurntStructure = function(target, doer)
-        if target == nil or not target:IsValid() then return false end
-        if not target:HasTag("burnt") then return false end
-        local prefab = target.prefab
-        local x, y, z = target.Transform:GetWorldPosition()
-        local rot = target.Transform:GetRotation()
-        target:Remove()
-        local rebuilt = GLOBAL.SpawnPrefab(prefab)
-        if rebuilt == nil then return false end
-        rebuilt.Transform:SetPosition(x, y, z)
-        rebuilt.Transform:SetRotation(rot)
-        if rebuilt.SoundEmitter then rebuilt.SoundEmitter:PlaySound("dontstarve/common/place_structure_stone") end
-        return true
-    end
-end
+-- Repair Burnt
 
 GLOBAL.STRINGS.ACTIONS.REBUILD_BURNT = "Repair"
 
 local REBUILD_BURNT = AddAction("REBUILD_BURNT", "Repair", function(act)
     local target = act.target
-    local doer = act.doer
-    if target == nil or doer == nil then return false end
+    if target == nil or not target:IsValid() then return false end
+    if not GLOBAL.TheWorld.ismastersim then return true end
     if not target:HasTag("burnt") then return false end
-    if not target:HasTag("structure") then return false end
-    return GLOBAL.RebuildBurntStructure(target, doer)
+    local prefab = target.prefab
+    local x, y, z = target.Transform:GetWorldPosition()
+    local rot = target.Transform:GetRotation()
+    target:Remove()
+    local rebuilt = GLOBAL.SpawnPrefab(prefab)
+    if rebuilt.SoundEmitter then rebuilt.SoundEmitter:PlaySound("dontstarve/common/place_structure_stone") end
+    local fx = GLOBAL.SpawnPrefab("cavein_dust_low")
+    if fx then
+        fx.Transform:SetPosition(x, y, z)
+        fx.Transform:SetScale(0.7, 0.7, 0.7)
+        if fx.AnimState then fx.AnimState:SetMultColour(1, 1, 1, 0.4) end
+    end
+    if rebuilt == nil then return false end
+    rebuilt.Transform:SetPosition(x, y, z)
+    rebuilt.Transform:SetRotation(rot)
+    return true
 end)
 
 REBUILD_BURNT.rmb = true
-REBUILD_BURNT.priority = 3
-REBUILD_BURNT.distance = 2
-REBUILD_BURNT.mount_valid = true
+REBUILD_BURNT.priority = 10
+REBUILD_BURNT.distance = 1
 
-AddComponentAction("SCENE", "inspectable", function(inst, doer, actions, right)
-    if right and inst:HasTag("burnt") and inst:HasTag("structure") then table.insert(actions, GLOBAL.ACTIONS.REBUILD_BURNT) end
-end)
+local function CanRepairBurnt(inst, doer, actions, right)
+    if right and inst:HasTag("burnt") then table.insert(actions, REBUILD_BURNT) end
+end
 
-AddStategraphActionHandler("wilson", GLOBAL.ActionHandler(GLOBAL.ACTIONS.REBUILD_BURNT, "dolongaction"))
-AddStategraphActionHandler("wilson_client", GLOBAL.ActionHandler(GLOBAL.ACTIONS.REBUILD_BURNT, "dolongaction"))
+AddComponentAction("SCENE", "workable", CanRepairBurnt)
+
+AddStategraphActionHandler("wilson", GLOBAL.ActionHandler(REBUILD_BURNT, "dolongaction"))
+AddStategraphActionHandler("wilson_client", GLOBAL.ActionHandler(REBUILD_BURNT, "dolongaction"))

@@ -8,7 +8,7 @@ module.exports = async (req, res) => {
   const channel = await getClientChannel(dotenv.GUILDID, dotenv.CHATROOM);
   if (!channel) return res.status(200).json({ ok: true });
   const body = req.body;
-  const desc = `*\`👻\` · **${body.victim.slice(0, 12)}** faleceu! Foi **${body.cause}** quem matou.*`;
+  const desc = `-# \`👻\` · **${body.victim.slice(0, 12)}** faleceu! Foi **${body.cause}** quem matou.`;
   channel.send({ embeds: [{ color: 0x8c8c8c, description: desc }] }).catch(error => {
     print(`[Error] Application error: ${error}`);
   });
@@ -23,7 +23,7 @@ module.exports = async (req, res) => {
       const colour = { r: 0.95, g: 0.35, b: 0.35, a: 1 };
       if (quantity > 0) {
         messagebuffer.buffer.push({ key: 'message', type: 'server', message: `${body.victim} perdeu ${quantity} Pontos...`, colour });
-        channel.send({ embeds: [buildEmbed({ color: 0xf92088, description: `*\`👅\` · **${body.victim}** perdeu **${quantity}** Pontos!*` })] }).catch(error => {
+        channel.send({ embeds: [buildEmbed({ color: 0xf92088, description: `-# *\`👅\` · **${body.victim}** perdeu **${quantity}** Pontos!*` })] }).catch(error => {
           print(`[Error] Application error: ${error}`);
         });
       }
