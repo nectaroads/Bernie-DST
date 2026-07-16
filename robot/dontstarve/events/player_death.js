@@ -22,10 +22,17 @@ module.exports = async (req, res) => {
       await databaseSetUserById(body.userid, { points: currentPoints - quantity });
       const colour = { r: 0.95, g: 0.35, b: 0.35, a: 1 };
       if (quantity > 0) {
-        messagebuffer.buffer.push({ key: 'message', type: 'server', message: `${body.victim} perdeu ${quantity} Pontos...`, colour });
-        channel.send({ embeds: [buildEmbed({ color: 0xf92088, description: `-# *\`👅\` · **${body.victim}** perdeu **${quantity}** Pontos!*` })] }).catch(error => {
-          print(`[Error] Application error: ${error}`);
-        });
+        if (body.cause == 'Red Cap') {
+          messagebuffer.buffer.push({ key: 'message', type: 'server', message: `${body.victim} não perdeu Pontos...`, colour });
+          channel.send({ embeds: [buildEmbed({ color: 0xf92088, description: `-# *\`👅\` · **${body.victim}** não perdeu Pontos!*` })] }).catch(error => {
+            print(`[Error] Application error: ${error}`);
+          });
+        } else {
+          messagebuffer.buffer.push({ key: 'message', type: 'server', message: `${body.victim} perdeu ${quantity} Pontos...`, colour });
+          channel.send({ embeds: [buildEmbed({ color: 0xf92088, description: `-# *\`👅\` · **${body.victim}** perdeu **${quantity}** Pontos!*` })] }).catch(error => {
+            print(`[Error] Application error: ${error}`);
+          });
+        }
       }
     }
   }

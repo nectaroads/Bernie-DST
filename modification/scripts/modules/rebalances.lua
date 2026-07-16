@@ -63,7 +63,7 @@ AddPrefabPostInitAny(function(inst)
         if inst:HasTag("preparedfood") or inst:HasTag("driedfood") then
             if inst.components.perishable ~= nil then
                 inst.components.perishable:SetPerishTime(
-                    inst.components.perishable.perishtime * 1.2
+                    inst.components.perishable.perishtime * 1.3
                 )
             end
         else
@@ -342,6 +342,21 @@ else
     function Combat:GetAttacked(attacker, damage, weapon, stimuli, spdamage)
         local inst = self.inst
         if inst and damage and damage > 0 then
+            -- Buff Followers
+            if not inst:HasTag("player") then
+                if inst.components.inventory then
+                    local hat = inst.components.inventory:GetEquippedItem(GLOBAL.EQUIPSLOTS.HEAD)
+                    if hat then damage = damage * 0.8 end
+                end
+            end
+
+            if attacker and not attacker:HasTag("player") then
+                if attacker.components.inventory then
+                    local hat = attacker.components.inventory:GetEquippedItem(GLOBAL.EQUIPSLOTS.HEAD)
+                    if hat and hat.components.armor then damage = damage * (1 + hat.components.armor.absorb_percent / 2) end
+                end
+            end
+
             -- On bloodfeasting, everything takes 2x damage
             if GLOBAL.TheWorld and GLOBAL.TheWorld._bloodfeasting and GLOBAL.TheWorld._bloodfeasting:value() then
                 damage = damage * 2
@@ -734,6 +749,7 @@ else
         durability = {},
         walkspeed = { diviningrod = 1.20, armormarble = 1 },
         damage = { spear = { damage = 40 }, cutless = { damage = 40 }, bullkelp_root = { damage = 40 }, spear_wathgrithr = { damage = 45 }, shieldofterror = { damage = 50 }, wathgrithr_shield = { damage = 50 }, oar_monkey = { damage = 50 }, tentaclespike = { damage = 50 }, whip = { damage = 55 }, batbat = { damage = 55 }, nightstick = { damage = 55 }, hambat = { damage = 55 }, fence_rotator = { damage = 60 }, voidcloth_scythe = { damage = 60 }, shadow_battleaxe = { damage = 60 }, sword_lunarplant = { damage = 60 }, rabbitkingspear = { damage = 65 }, trident = { damage = 65 }, spear_wathgrithr_lightning = { damage = 60 }, ruins_bat = { damage = 65 }, glasscutter = { damage = 70, durability = 200 }, nightsword = { damage = 70, durability = 200 }, pocketwatch_weapon = { damage = 75 } },
+        addtags = { shieldofterror = { "shadow_item" } }
     }
 
     local function AddInsulation(inst, insulationtype, amount)
@@ -779,6 +795,12 @@ else
         if data.durability ~= nil then AddDurability(inst, data.durability) end
     end
 
+    local function AddTags(inst, tags)
+        for _, tag in ipairs(tags) do
+            inst:AddTag(tag)
+        end
+    end
+
     for prefab, amount in pairs(itemschanges.insulationcold) do
         AddPrefabPostInit(prefab, function(inst) AddInsulation(inst, GLOBAL.SEASONS.SUMMER, amount) end)
     end
@@ -803,6 +825,12 @@ else
         AddPrefabPostInit(prefab, function(inst) AddDamage(inst, data) end)
     end
 
+    for prefab, tags in pairs(itemschanges.addtags) do
+        AddPrefabPostInit(prefab, function(inst)
+            AddTags(inst, tags)
+        end)
+    end
+
     -- Prototyper range
     local function OnPrototyperPostInit(inst)
         local oldSetRadius = inst.SetRadius
@@ -812,6 +840,74 @@ else
     end
 
     AddComponentPostInit("prototyper", OnPrototyperPostInit)
+
+    -- Safe Firepit
+    AddPrefabPostInit("campfirefire", function(inst)
+        if not GLOBAL.TheWorld.ismastersim then return end
+        inst:DoTaskInTime(0, function()
+            if inst.components.heater == nil then return end
+            local old_GetHeat = inst.components.heater.GetHeat
+            inst.components.heater.GetHeat = function(self, observer)
+                local heat = old_GetHeat(self, observer)
+                if observer ~= nil and observer:HasTag("player") and inst.entity:GetParent() ~= nil and inst.entity:GetParent().prefab == "firepit" then observer._firepitsafetime = GLOBAL.GetTime() end
+                return heat
+            end
+        end)
+    end)
+
+    -- Make Spiders/Pigs/Merms less annoying.
+    local civilizetargets = { "pigman", "merm", "spider" }
+
+    AddComponentPostInit("armor", function(self)
+        local old_TakeDamage = self.TakeDamage
+        self.TakeDamage = function(self, damage_amount)
+            local inventoryitem = self.inst.components.inventoryitem
+            local owner = inventoryitem ~= nil and inventoryitem:GetGrandOwner() or nil
+            if owner ~= nil and not owner:HasTag("player") then damage_amount = damage_amount / 3 end
+            return old_TakeDamage(self, damage_amount)
+        end
+    end)
+
+    local function HasPlayerLeader(inst)
+        local follower = inst.components.follower
+        if follower == nil then return false end
+        local leader = follower:GetLeader()
+        return leader ~= nil and leader:HasTag("player") or follower.cached_player_leader_userid ~= nil
+    end
+
+    local function CivilizeTarget(inst)
+        if not GLOBAL.TheWorld.ismastersim then return end
+        if inst.components.eater ~= nil then
+            local old_CanEat = inst.components.eater.CanEat
+            inst.components.eater.CanEat = function(self, food, ...)
+                if HasPlayerLeader(inst) then
+                    for _, player in ipairs(GLOBAL.AllPlayers) do
+                        if player:IsValid() and self:IsTryingToFeedMe(player) then return old_CanEat(self, food, ...) end
+                    end
+                    if food ~= nil and food.components.inventoryitem ~= nil and food.components.inventoryitem.owner == nil then return false end
+                end
+                return old_CanEat(self, food, ...)
+            end
+        end
+        if inst.components.combat ~= nil then
+            local old_IsValidTarget = inst.components.combat.IsValidTarget
+            inst.components.combat.IsValidTarget = function(self, target)
+                if HasPlayerLeader(inst) and target ~= nil and target:HasTag("player") then return false end
+                return old_IsValidTarget(self, target)
+            end
+        end
+        if inst.components.follower ~= nil then
+            local old_LongUpdate = inst.components.follower.LongUpdate
+            inst.components.follower.LongUpdate = function(self, dt)
+                if self.cached_player_leader_userid ~= nil then return end
+                return old_LongUpdate(self, dt)
+            end
+        end
+    end
+
+    for _, prefab in ipairs(civilizetargets) do
+        AddPrefabPostInit(prefab, CivilizeTarget)
+    end
 
     -- Merm king can't be exploited
     local function OnMermKingPostInit(inst)
@@ -876,7 +972,7 @@ else
                     local attacker = combat.inst
                     local range = attacker.hitrange or 3
                     old_DoAttack(combat, target, weapon, projectile, stimuli, instancemult)
-                    combat:DoAreaAttack(target, range, weapon, function(guy) return not (guy ~= nil and data.blacklist ~= nil and data.blacklist[guy.prefab]) end, stimuli, nil, nil)
+                    combat:DoAreaAttack(target, range, weapon, function(guy) return not (guy and guy:IsValid() and data.blacklist ~= nil and data.blacklist[guy.prefab]) end, stimuli, nil, nil)
                 end
             end)
         end)
@@ -1046,6 +1142,43 @@ else
             if inst.components.childspawner ~= nil then
                 inst.components.childspawner:StopSpawning()
                 if not GLOBAL.TheWorld.state.isday and not GLOBAL.TheWorld.state.iswinter then inst.components.childspawner:StartSpawning() end
+            end
+        end)
+    end)
+
+
+    AddPlayerPostInit(function(inst)
+        -- Players are meat after all
+        inst:ListenForEvent("death", function(player)
+            for i = 1, 2 do
+                local meat = GLOBAL.SpawnPrefab("humanmeat")
+                if meat ~= nil then
+                    local x, y, z = player.Transform:GetWorldPosition()
+                    meat.Transform:SetPosition(x, y, z)
+                    GLOBAL.LaunchAt(meat, player, nil, 1)
+                end
+            end
+        end)
+
+        -- Firepit stuff
+        local function HasRecentFirepitHeat(inst)
+            return inst._firepitsafetime ~= nil and GLOBAL.GetTime() - inst._firepitsafetime <= 3
+        end
+
+        inst:DoTaskInTime(0, function()
+            if inst.components.hunger ~= nil then
+                local old_HungerDoDelta = inst.components.hunger.DoDelta
+                inst.components.hunger.DoDelta = function(self, delta, overtime, ignore_invincible)
+                    if delta < 0 and HasRecentFirepitHeat(inst) then delta = delta * .5 end
+                    return old_HungerDoDelta(self, delta, overtime, ignore_invincible)
+                end
+            end
+            if inst.components.sanity ~= nil then
+                local old_SanityDoDelta = inst.components.sanity.DoDelta
+                inst.components.sanity.DoDelta = function(self, delta, overtime)
+                    if delta < 0 and HasRecentFirepitHeat(inst) then delta = delta * .5 end
+                    return old_SanityDoDelta(self, delta, overtime)
+                end
             end
         end)
     end)
@@ -1508,115 +1641,22 @@ AddComponentAction("INVENTORY", "container", function(inst, doer, actions)
     AddBackpackContainerAction(inst, doer, actions)
 end)
 
--- Ghost Rework
-local POSSESS_RANGE = 3
-
-local function IsPossessable(target)
-    return target ~= nil and target:IsValid() and not target:HasTag("INLIMBO") and (target:HasTag("player") or target.components.health ~= nil)
-end
-
-local function ReleasePossession(doer)
-    if doer == nil then return end
-    if doer._possess_task ~= nil then
-        doer._possess_task:Cancel()
-        doer._possess_task = nil
-    end
-    if doer._possess_target ~= nil then doer._possess_target = nil end
-    doer:RemoveTag("possessing")
-    if doer.AnimState ~= nil then doer.AnimState:SetMultColour(1, 1, 1, 1) end
-    if doer.DynamicShadow ~= nil then doer.DynamicShadow:Enable(true) end
-    if doer.components.locomotor ~= nil then doer.components.locomotor:RemoveExternalSpeedMultiplier(doer, "possess") end
-end
-
-local function StartPossession(doer, target)
-    if doer == nil or target == nil or not IsPossessable(target) then return false end
-    if not doer:HasTag("playerghost") then return false end
-
-    ReleasePossession(doer)
-
-    if target.components.hauntable ~= nil then
-        target.components.hauntable:DoHaunt(doer)
-    end
-
-    if target:HasTag("player") then
-        target:PushEvent("possessed_by_ghost", { ghost = doer })
-    else
-        target:PushEvent("possessed_by_ghost_creature", { ghost = doer })
-    end
-
-    doer:AddTag("possessing")
-    doer._possess_target = target
-
-    if doer.AnimState ~= nil then
-        doer.AnimState:SetMultColour(1, 1, 1, 0)
-    end
-
-    if doer.DynamicShadow ~= nil then
-        doer.DynamicShadow:Enable(false)
-    end
-
-    if doer.components.locomotor ~= nil then
-        doer.components.locomotor:Stop()
-        doer.components.locomotor:SetExternalSpeedMultiplier(doer, "possess", 0)
-    end
-
-    doer._possess_task = doer:DoPeriodicTask(0.1, function(inst)
-        local target = inst._possess_target
-        if target == nil or not target:IsValid() or not inst:HasTag("playerghost") then
-            ReleasePossession(inst)
-            return
-        end
-
-        local x, y, z = target.Transform:GetWorldPosition()
-        inst.Transform:SetPosition(x, y, z)
-    end)
-
-    doer:ListenForEvent("onremove", function() ReleasePossession(doer) end, target)
-    doer:ListenForEvent("ms_respawnedfromghost", function() ReleasePossession(doer) end)
-
-    return true
-end
-
-local POSSESS = AddAction("POSSESS", "Possess", function(act)
-    return StartPossession(act.doer, act.target)
-end)
-
-POSSESS.priority = 10
-POSSESS.rmb = true
-POSSESS.distance = POSSESS_RANGE
-POSSESS.mount_valid = false
-
-local RELEASEPOSSESS = AddAction("RELEASEPOSSESS", "Release", function(act)
-    ReleasePossession(act.doer)
-    return true
-end)
-
-RELEASEPOSSESS.priority = 11
-RELEASEPOSSESS.rmb = true
-RELEASEPOSSESS.distance = POSSESS_RANGE
-RELEASEPOSSESS.mount_valid = false
-
-AddComponentAction("SCENE", "inspectable", function(inst, doer, actions, right)
-    if not right or doer == nil or inst == nil then return end
-
-    if doer:HasTag("playerghost") and doer._possess_target == inst then
-        table.insert(actions, GLOBAL.ACTIONS.RELEASEPOSSESS)
-        return
-    end
-
-    if doer:HasTag("playerghost") and not doer:HasTag("possessing") and IsPossessable(inst) then
-        table.insert(actions, GLOBAL.ACTIONS.POSSESS)
-    end
-end)
-
-AddStategraphActionHandler("wilson", GLOBAL.ActionHandler(GLOBAL.ACTIONS.POSSESS, "haunt_pre"))
-AddStategraphActionHandler("wilson_client", GLOBAL.ActionHandler(GLOBAL.ACTIONS.POSSESS, "haunt_pre"))
-
-AddStategraphActionHandler("wilson", GLOBAL.ActionHandler(GLOBAL.ACTIONS.RELEASEPOSSESS, "haunt_pre"))
-AddStategraphActionHandler("wilson_client", GLOBAL.ActionHandler(GLOBAL.ACTIONS.RELEASEPOSSESS, "haunt_pre"))
-
-AddPlayerPostInit(function(inst)
+-- Suicide
+AddPrefabPostInit("red_cap", function(inst)
     if not GLOBAL.TheWorld.ismastersim then return end
-    inst:ListenForEvent("death", function(inst) ReleasePossession(inst) end)
-    inst:ListenForEvent("onremove", function(inst) ReleasePossession(inst) end)
+    if inst.components.edible then inst.components.edible.healthvalue = -300 end
+end)
+
+-- Skilltrees
+local SkillTreeDefs = require("prefabs/skilltree_defs")
+AddPrefabPostInit("world", function(world)
+    world:ListenForEvent("playeractivated", function(world, player)
+        if player ~= GLOBAL.ThePlayer then return end
+        local updater = player.components.skilltreeupdater
+        if updater == nil or updater.AddSkillXP == nil then return end
+        if SkillTreeDefs.SKILLTREE_DEFS[player.prefab] == nil then return end
+        GLOBAL.TheGenericKV:SetKV("fuelweaver_killed", "1")
+        GLOBAL.TheGenericKV:SetKV("celestialchampion_killed", "1")
+        updater:AddSkillXP(160)
+    end)
 end)

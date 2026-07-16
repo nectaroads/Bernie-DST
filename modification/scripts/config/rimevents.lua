@@ -139,6 +139,13 @@ return {
             alt = "monkey",
             maxcreatures = 3,
         },
+        befriend = {
+            messagestart = { value = true, key = "message", type = "willow", message = "Algo na região está em busca de um amigo...", event = "blink" },
+            messageend = { value = false, key = "message", type = "willow", message = "Uma nova amizade eterna nasceu!" },
+            type = "befriend",
+            loop = 0,
+            currentloop = 0
+        },
         witchcraft = {
             messagestart = { value = true, key = "message", type = "willow", message = "Eeew... que cheiro podre. Algo vai acontecer.", event = "blink" },
             messageend = { value = false, key = "message", type = "willow", message = "Essa bruxaria estragou meu almoço picante..." },

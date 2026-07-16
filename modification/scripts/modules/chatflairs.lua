@@ -90,7 +90,6 @@ else
             for _, player in ipairs(GLOBAL.AllPlayers) do
                 if player and player:IsValid() then
                     SendModRPCToClient(GetClientModRPC("bernie_client_rpc", "content"), player.userid, GLOBAL.json.encode(data))
-                    return
                 end
             end
         else

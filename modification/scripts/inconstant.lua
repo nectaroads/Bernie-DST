@@ -6,6 +6,7 @@ local isclient = not GLOBAL.TheNet:IsDedicated()
 modimport("scripts/modules/tunings.lua")
 modimport("scripts/modules/rimevents.lua")
 modimport("scripts/modules/rebalances.lua")
+--modimport("scripts/modules/companion.lua")
 
 if isclient then
     -- Server only

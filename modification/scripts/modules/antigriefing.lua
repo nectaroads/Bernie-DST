@@ -122,6 +122,7 @@ end)
 -- Repair Burnt
 
 GLOBAL.STRINGS.ACTIONS.REBUILD_BURNT = "Repair"
+local rebuildblacklist = { pighouse = true, mermhouse = true, mermwatchtower = true }
 
 local REBUILD_BURNT = AddAction("REBUILD_BURNT", "Repair", function(act)
     local target = act.target
@@ -129,6 +130,7 @@ local REBUILD_BURNT = AddAction("REBUILD_BURNT", "Repair", function(act)
     if not GLOBAL.TheWorld.ismastersim then return true end
     if not target:HasTag("burnt") then return false end
     local prefab = target.prefab
+    if rebuildblacklist[prefab] then return false end
     local x, y, z = target.Transform:GetWorldPosition()
     local rot = target.Transform:GetRotation()
     target:Remove()

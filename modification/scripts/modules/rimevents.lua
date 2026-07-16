@@ -175,6 +175,55 @@ else
         end)
     end
 
+    local befriendable = { "spider", "pigman", "merm" }
+
+    local function NoHoles(pt)
+        return not GLOBAL.TheWorld.Map:IsPointNearHole(pt)
+    end
+
+    local function FindSpawnPoint(player)
+        local origin = player:GetPosition()
+        for i = 1, 12 do
+            local angle = math.random() * 2 * GLOBAL.PI
+            local radius = math.random(18, 24)
+            local offset = GLOBAL.FindWalkableOffset(origin, angle, radius, 12, false, true, NoHoles)
+            if offset ~= nil then return origin.x + offset.x, 0, origin.z + offset.z end
+        end
+    end
+
+    local function GetRandomPlayer()
+        local players = GLOBAL.AllPlayers
+        if players == nil or #players == 0 then return end
+        local candidates = {}
+        for _, player in ipairs(players) do
+            if player:IsValid() and not player:HasTag("playerghost") then table.insert(candidates, player) end
+        end
+        return #candidates > 0 and candidates[math.random(#candidates)] or nil
+    end
+
+    EventHandler.befriend = function(event)
+        GLOBAL.TheWorld:DoTaskInTime(math.random(mindelay / 2, maxdelay / 2), function()
+            if GLOBAL.TheWorld:HasTag("cave") then return end
+            local player = GetRandomPlayer()
+            if player == nil then return end
+            local x, y, z = FindSpawnPoint(player)
+            if x == nil then return end
+            local creature = GLOBAL.SpawnPrefab(befriendable[math.random(#befriendable)])
+            if creature == nil then return end
+            creature.Transform:SetPosition(x, y, z)
+            if creature.components.follower ~= nil then
+                creature.components.follower.neverexpire = true
+                creature.components.follower:SetLeader(player)
+            end
+            local fx = GLOBAL.SpawnPrefab("woby_dash_shadow_fx")
+            if fx ~= nil then fx.Transform:SetPosition(x, y, z) end
+            GLOBAL.ExecuteOnAllShards(event.messageend)
+            local users = GLOBAL.GetUsers()
+            local jsonEncoded = GLOBAL.json.encode({ key = "world_sadistic_event_end", event = event, users = users })
+            GLOBAL.SendRequest(jsonEncoded)
+        end)
+    end
+
     EventHandler.randomflare = function(event)
         GLOBAL.TheWorld:DoTaskInTime(math.random(mindelay, maxdelay), function(inst)
             if not GLOBAL.TheWorld then return end

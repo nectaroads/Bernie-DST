@@ -1,7 +1,19 @@
 print('[Bernie] Starting Client-Hud module')
 
-local config = GLOBAL.LoadConfig("clienthud.lua")
 local isclient = not GLOBAL.TheNet:IsDedicated()
+
+if isclient then
+    -- Assets
+    table.insert(Assets, Asset("IMAGE", "images/tab_discord.tex"))
+    table.insert(Assets, Asset("ATLAS", "images/tab_discord.xml"))
+end
+
+local config = GLOBAL.LoadConfig("clienthud.lua")
+local islocked = false
+local screen = nil
+GLOBAL.debugscreen = nil
+
+local ImageButton = require("widgets/imagebutton")
 
 if isclient then
     -- Hide Admin Badge
@@ -25,6 +37,17 @@ if isclient then
                     if playerListing ~= nil and playerListing.adminBadge ~= nil then playerListing.adminBadge:Hide() end
                 end
             end
+
+            -- Discord Button
+            if self.customlink_button == nil then
+                self.customlink_button = self.root:AddChild(ImageButton("images/tab_discord.xml", "tab_discord.tex"))
+                self.customlink_button:SetScale(.4)
+                self.customlink_button:SetHoverText("Discord", { font = GLOBAL.NEWFONT_OUTLINE, offset_x = 0, offset_y = 38, colour = GLOBAL.WHITE })
+                self.customlink_button:SetOnClick(function() GLOBAL.VisitURL("https://discord.com/invite/37yfuWjyj7") end)
+            end
+            self.customlink_button:SetPosition(-281, 200)
+            if self.viewgroup_button ~= nil then self.viewgroup_button:SetPosition(-377, 200) end
+            if self.toggleservertext_button ~= nil then self.toggleservertext_button:SetPosition(-329, 200) end
         end
     end)
 
@@ -73,7 +96,9 @@ if isclient then
     end
 
     local function ShowList(title, description, buttons)
-        GLOBAL.TheFrontEnd:PushScreen(require("screens/textlistpopupdialog")("\n\n" .. tostring(title or ""), GLOBAL.StringToLines(description), nil, buttons))
+        screen = require("screens/textlistpopupdialog")("\n\n" .. tostring(title or ""), GLOBAL.StringToLines(description), nil, buttons)
+        GLOBAL.TheFrontEnd:PushScreen(screen)
+        return screen
     end
 
     local function BuildDescription(description)
@@ -110,6 +135,7 @@ if isclient then
                 text = config and config["close"] or "undefined",
                 cb = function()
                     GLOBAL.TheFrontEnd:PopScreen()
+                    screen = nil
                 end
             })
         end
@@ -137,11 +163,26 @@ if isclient then
                 text = config and config.accept or "undefined",
                 cb = function()
                     GLOBAL.TheFrontEnd:PopScreen()
+                    screen = nil
                 end
             })
         end
         local description = BuildDescription(page.description)
         ShowList(CookString(page.title, GLOBAL.ThePlayer), CookString(description, GLOBAL.ThePlayer), buttons)
+
+        if screen ~= nil and screen.proot ~= nil then
+            local ImageButton = require("widgets/imagebutton")
+            screen.topbutton = screen.proot:AddChild(ImageButton())
+            screen.topbutton:SetText("Desligar F1/F2")
+            --screen.topbutton.text:SetColour(.7, .7, .7, 1)
+            screen.topbutton.image:SetTint(1, 1, 1, 1)
+            screen.topbutton:SetPosition(0, -260, 0) -- 210
+            screen.topbutton:SetScale(.75)
+            screen.topbutton:SetOnClick(function()
+                islocked = true
+            end)
+            GLOBAL.debugscreen = screen
+        end
     end
 
     local function BuildRankFilling(data, key)
@@ -180,19 +221,17 @@ if isclient then
     AddPrefabPostInit("world", function(inst)
         inst:ListenForEvent("entercharacterselect", ShowWelcomeMessage)
         GLOBAL.BindKey(282, function()
-            ShowGuidebookPage()
+            if not screen and not islocked then ShowGuidebookPage() end
         end)
         GLOBAL.BindKey(283, function()
-            ShowGuidebookPage("rank", rankfillings)
+            if not screen and not islocked then ShowGuidebookPage("rank", rankfillings) end
         end)
-        GLOBAL.ShowCustomMessage({ type = 'server', message = 'Sua primeira vez aqui? Aperte F1 e aprenda sobre o servidor.' })
+        GLOBAL.ShowCustomMessage({ type = 'server', message = 'Primeira vez aqui? Aperte F1 e aprenda sobre o servidor.' })
         GLOBAL.ShowCustomMessage({ type = 'server', message = 'Tem alguma dica/reclamação? Aperte tab e acesse nosso discord!' })
-        GLOBAL.ShowCustomMessage({ type = 'server', message = 'Não gosta desse servidor? Convide seus amigos para outro servidor brasileiro!' })
     end)
 else
     GLOBAL.HandleShardFunction.rank = function(data)
         if not data or not data.userid then return end
-        local users = GLOBAL.AllPlayers
         for _, player in ipairs(GLOBAL.AllPlayers) do
             if player and player:IsValid() and player.userid == data.userid then
                 SendModRPCToClient(GetClientModRPC("bernie_client_rpc", "content"), player.userid, GLOBAL.json.encode(data))

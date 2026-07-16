@@ -22,22 +22,54 @@ else
         return ent and (ent.name or (ent.GetDisplayName and ent:GetDisplayName()) or ent.prefab) or "???"
     end
 
-    local function OnEntityDeath(ent, data)
-        if not data then return end
-        local victim = ent or (data and data.inst) or data or nil
-        local cause = data.afflicter or data.cause or data.source or data.instigator or nil
-        local causeuserid = cause and cause.userid or nil
-        local users = GLOBAL.GetUsers()
-        if not victim then return end
-        if victim:HasTag("epic") then
-            GLOBAL.ExecuteOnAllShards({ key = "message", type = "server", sound = "summerevent2022/carnivalgame_puckdrop/endbell", message = ("★ " .. GetSafeName(victim) .. " foi derrotado ★") or "error" })
-            local jsonEncoded = GLOBAL.json.encode({ key = "epic_death", prefab = victim.prefab, victim = GetSafeName(victim), cause = cause and GetSafeName(cause) or "???", users = users })
-            GLOBAL.SendRequest(jsonEncoded)
-        else
-            if victim:HasTag("player") then
-                local jsonEncoded = GLOBAL.json.encode({ key = "player_death", victim = GetSafeName(victim), cause = cause and GetSafeName(cause) or "???", users = users, userid = victim.userid, causeuserid = causeuserid })
-                GLOBAL.SendRequest(jsonEncoded)
+    -- Trying to fix "nil death reason"
+    AddPrefabPostInitAny(function(inst)
+        if not GLOBAL.TheWorld.ismastersim then return end
+        inst:ListenForEvent("healthdelta", function(inst, data)
+            if data ~= nil and data.amount ~= nil and data.amount < 0 then
+                inst._lastdamageentity = data.afflicter
+                inst._lastdamagecause = data.cause
             end
+        end)
+        inst:ListenForEvent("minhealth", function(inst, data)
+            if inst.components.health ~= nil and inst.components.health:IsDead() then
+                inst._lastdamageentity = data ~= nil and data.afflicter or nil
+                inst._lastdamagecause = data ~= nil and data.cause or nil
+            end
+        end)
+    end)
+
+    local function GetPrefabDisplayName(prefab)
+        local p = GLOBAL.Prefabs[prefab]
+        if p == nil then return nil end
+        if p.displaynamefn ~= nil then
+            return p.displaynamefn()
+        end
+        if p.nameoverride ~= nil then
+            return GLOBAL.STRINGS.NAMES[string.upper(p.nameoverride)]
+        end
+        return GLOBAL.STRINGS.NAMES[string.upper(prefab)]
+    end
+
+    local function OnEntityDeath(ent, data)
+        if data == nil then return end
+
+        local victim = ent or data.inst
+        if victim == nil then return end
+
+        local afflicter = data.afflicter or victim._lastdamageentity
+        local causestring = data.cause or victim._lastdamagecause
+        local causename = afflicter ~= nil and GetSafeName(afflicter) or GetPrefabDisplayName(causestring) or causestring or "???"
+        local causeuserid = afflicter ~= nil and afflicter.userid or nil
+        local users = GLOBAL.GetUsers()
+
+        if victim:HasTag("epic") then
+            GLOBAL.ExecuteOnAllShards({ key = "message", type = "server", sound = "summerevent2022/carnivalgame_puckdrop/endbell", message = "★ " .. GetSafeName(victim) .. " foi derrotado ★" })
+            local jsonEncoded = GLOBAL.json.encode({ key = "epic_death", prefab = victim.prefab, victim = GetSafeName(victim), cause = causename, users = users })
+            GLOBAL.SendRequest(jsonEncoded)
+        elseif victim:HasTag("player") then
+            local jsonEncoded = GLOBAL.json.encode({ key = "player_death", victim = GetSafeName(victim), cause = causename, users = users, userid = victim.userid, causeuserid = causeuserid })
+            GLOBAL.SendRequest(jsonEncoded)
         end
     end
 
@@ -47,7 +79,7 @@ else
         local cause = data and (data.source or data.reviver or data.doer or data.cause or data.afflicter)
         if inst:HasTag("player") then
             local users = GLOBAL.GetUsers()
-            local jsonEncoded = GLOBAL.json.encode({ key = "player_revive", victim = GetSafeName(victim), cause = GetSafeName(cause), users = users })
+            local jsonEncoded = GLOBAL.json.encode({ key = "player_revive", victim = GetSafeName(victim), userid = victim.userid, cause = GetSafeName(cause), users = users })
             GLOBAL.SendRequest(jsonEncoded)
         end
     end
