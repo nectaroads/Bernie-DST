@@ -94,7 +94,21 @@ if isclient then
                         GLOBAL.table.insert(modnames, tostring(name))
                     end
                     description = description .. GLOBAL.table.concat(modnames, ", ")
-                    GLOBAL.TheFrontEnd:PushScreen(require("screens/bigpopupdialog")(title, description, { { text = config.leave, cb = function() GLOBAL.DoRestart(true) end }, { text = config.accept, cb = function() GLOBAL.DoRestart(true) end }, }))
+                    GLOBAL.TheFrontEnd:PushScreen(require("screens/bigpopupdialog")(title, description, { { text = config.leave, cb = function() GLOBAL.DoRestart(true) end }, {
+                        text = config.accept,
+                        cb = function()
+                            for modid in GLOBAL.pairs(cursedmods) do
+                                local modname = tostring(modid)
+                                if not GLOBAL.string.find(modname, "^workshop%-") then
+                                    modname = "workshop-" .. modname
+                                end
+                                GLOBAL.KnownModIndex:TempDisable(modname)
+                            end
+                            GLOBAL.KnownModIndex:Save(function()
+                                GLOBAL.DoRestart(true)
+                            end)
+                        end
+                    }, }))
                     if inst then
                         inst:DoTaskInTime(120, function()
                             if inst then GLOBAL.DoRestart(true) end
@@ -109,6 +123,7 @@ if isclient then
                 }
                 FindProblematicStuff(cursedclasses)
                 local cursedmods = {
+                    [3760823838] = "Auto Dodger",
                     [3449488023] = "Environment Pinger",
                     [3384030282] = "EP Tweaked",
                     [3451668942] = "Night Hawk",

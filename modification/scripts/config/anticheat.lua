@@ -1,6 +1,6 @@
 return {
     title = "Trapaças Detectadas!",
-    description = "Infelizmente, encontramos mods não permitidos no servidor, como: ",
+    description = "Infelizmente encontramos mods não permitidos no servidor. Podemos desativar esses mods? ",
     leave = "Sair",
-    accept = "Concordo"
+    accept = "Permitir"
 }

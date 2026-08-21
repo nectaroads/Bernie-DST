@@ -184,6 +184,7 @@ return {
         "Pigandy",
         "Broken Pig",
         "Master Sunpig",
+        "Puppypig"
     },
 
     gnomenames = {

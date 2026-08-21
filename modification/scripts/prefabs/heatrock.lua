@@ -201,7 +201,7 @@ local function GetInventoryInsulationChance(inst, insulationtype)
             if insulator.type == insulationtype then insulation = insulation + insulator:GetInsulation() end
         end
     end
-    if insulationtype == GLOBAL.SEASONS_INSULATION_COLD and owner.components.beard ~= nil then insulation = insulation + owner.components.beard:GetInsulation() end
+    if owner.components.beard ~= nil then insulation = insulation + owner.components.beard:GetInsulation() end
     return math.min((insulation / 20) * 0.05, 1)
 end
 

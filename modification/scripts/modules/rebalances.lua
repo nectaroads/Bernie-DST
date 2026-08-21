@@ -535,6 +535,47 @@ else
         end
     end)
 
+    -- Wortox nerf
+    local function AddSoulHealOverTime(inst, amount)
+        inst._soulhealremaining = (inst._soulhealremaining or 0) + amount
+        if inst._soulhealtask ~= nil then return end
+        inst._soulhealtask = inst:DoPeriodicTask(1, function()
+            if inst.components.health == nil or inst.components.health:IsDead() or inst._soulhealremaining == nil or inst._soulhealremaining <= 0 then
+                inst._soulhealremaining = nil
+                inst._soulhealtask:Cancel()
+                inst._soulhealtask = nil
+                return
+            end
+            local amount = math.min(1, inst._soulhealremaining)
+            inst._soulhealremaining = inst._soulhealremaining - amount
+            inst.components.health:DoDelta(amount, true, "wortox_soul_remaining_heal")
+        end)
+    end
+
+    AddComponentPostInit("health", function(self)
+        local DoDelta = self.DoDelta
+
+        self.IsInvincible = function()
+            return false
+        end
+
+        self.SetInvincible = function(self)
+            self.invincible = false
+        end
+
+        self.DoDelta = function(self, amount, overtime, cause, ignore_invincible, afflicter, ignore_absorb)
+            if amount > 0 and cause == "wortox" and self.inst:HasTag("player") then
+                local divided = amount / 3
+                AddSoulHealOverTime(self.inst, divided)
+                amount = divided
+            end
+            if self.inst.is_teleporting then
+                ignore_invincible = true
+            end
+            return DoDelta(self, amount, overtime, cause, ignore_invincible, afflicter, ignore_absorb)
+        end
+    end)
+
     -- Better backpacks
     local function OnPlayerItemGet(inst, data)
         local backpack = data.item
@@ -970,9 +1011,11 @@ else
                     if target == nil then return old_DoAttack(combat, target, weapon, projectile, stimuli, instancemult) end
                     if data.blacklist ~= nil and data.blacklist[target.prefab] then return end
                     local attacker = combat.inst
-                    local range = attacker.hitrange or 3
+                    local range = (attacker.hitrange or 3.5) - 0.5
                     old_DoAttack(combat, target, weapon, projectile, stimuli, instancemult)
-                    combat:DoAreaAttack(target, range, weapon, function(guy) return not (guy and guy:IsValid() and data.blacklist ~= nil and data.blacklist[guy.prefab]) end, stimuli, nil, nil)
+                    if target and target:IsValid() and target.Transform then
+                        combat:DoAreaAttack(target, range, weapon, function(guy) return not (guy and guy:IsValid() and data.blacklist ~= nil and data.blacklist[guy.prefab]) end, stimuli, nil, nil)
+                    end
                 end
             end)
         end)
